@@ -15,6 +15,7 @@
   <div id="clipinfo"></div>
   <div class="spacer"></div>
   <button id="b-split" title="Add edit at playhead (⌘K)">Split</button>
+  <button id="b-razor" title="Razor: click a clip to split it there (C). V or Esc to select.">Razor</button>
   <button id="b-undo" title="Undo (⌘Z)">Undo</button>
   <button id="b-redo" title="Redo (⇧⌘Z)">Redo</button>
   <button id="b-a1" title="Show or hide the camera audio track">A1</button>
@@ -86,9 +87,10 @@
       <tr><td>← → · ⇧← ⇧→</td><td>1 frame · 5 frames</td></tr>
       <tr><td>↑ ↓ · Home End</td><td>previous / next edit · start / end</td></tr>
       <tr><td>⌘K</td><td>add edit (split) at playhead</td></tr>
+      <tr><td>C · V</td><td>razor: click a clip to split it there · back to select (Esc too)</td></tr>
       <tr><td>Q · W</td><td>ripple trim previous / next edit to playhead</td></tr>
       <tr><td>I · O · X</td><td>mark in · mark out · mark clip (⇧⌘X or Esc clears)</td></tr>
-      <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>lift · ripple delete (marked range, else selected clip)</td></tr>
+      <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>ripple delete (closes the gap) · lift (leaves a gap); marked range, else selected clip</td></tr>
       <tr><td>M · ⇧M · ⇧⌘M</td><td>comment at playhead · next comment · previous comment</td></tr>
       <tr><td>⌘Z · ⇧⌘Z</td><td>undo · redo</td></tr>
       <tr><td>Tab · D</td><td>switch version at the same moment · show what only this version has</td></tr>

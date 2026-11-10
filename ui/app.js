@@ -552,16 +552,40 @@ inner.addEventListener('mousedown', (e) => {
   if (t.classList.contains('h')) return startTrim(e, t);
   if (t.classList.contains('lbar')) return startLayerMove(e, t);
   if (t.classList.contains('cm')) { focusComment(t.dataset.id, true); return; }
+  if (S.tool === 'razor' && t.closest('.block')) {
+    e.preventDefault();
+    const f = frameAtX(e.clientX);   // read before setRate, which can scroll the timeline
+    setRate(0);
+    splitAtPlayhead(f);
+    return;
+  }
   const blockNode = t.closest('.block,.gap');
   if (blockNode && !e.shiftKey) {
     S.sel = blockNode.dataset.id;
+    if (markRange()) clearMarks();   // clicking a clip drops stale I/O marks
     document.querySelectorAll('.block.sel,.gap.sel').forEach((n) => n.classList.remove('sel'));
     blockNode.classList.add('sel');
-    return;
+    return startClipMove(e, blockNode);
   }
   setRate(0); seek(frameAtX(e.clientX));
   drag((ev) => seek(frameAtX(ev.clientX)));
 });
+
+// Razor (C): click a clip to split it at that frame; V goes back to select.
+const razorLine = el('div'); razorLine.id = 'razorline';
+function setTool(tool) {
+  S.tool = tool;
+  document.body.classList.toggle('razor', tool === 'razor');
+  $('b-razor').classList.toggle('on', tool === 'razor');
+  if (tool !== 'razor') razorLine.remove();
+}
+inner.addEventListener('mousemove', (e) => {
+  if (S.tool !== 'razor') return;
+  if (!e.target.closest('.block')) { razorLine.remove(); return; }
+  if (!razorLine.parentNode) inner.appendChild(razorLine);
+  razorLine.style.left = `${x(frameAtX(e.clientX))}px`;
+});
+inner.addEventListener('mouseleave', () => razorLine.remove());
 
 inner.addEventListener('dblclick', (e) => {
   const lane = e.target.closest('.lane.audio');
@@ -576,6 +600,29 @@ inner.addEventListener('dblclick', (e) => {
   const b = e.target.closest('.block');
   if (b) { const it = S.items.find((i) => i.id === b.dataset.id); setRate(0); seek(it.start); }
 });
+
+// Drag a clip to a new place in the sequence; a click without movement only selects.
+function startClipMove(e, node) {
+  e.preventDefault();
+  const it = S.items.find((i) => i.id === node.dataset.id), x0 = e.clientX;
+  let moving = false, to = null;
+  const mark = el('div'); mark.id = 'dropmark';
+  drag((ev) => {
+    if (!moving && Math.abs(ev.clientX - x0) < 5) return;
+    if (!moving) { moving = true; setRate(0); node.classList.add('moving'); inner.appendChild(mark); }
+    const f = frameAtX(ev.clientX), hit = S.items.find((i) => f < i.start + i.dur / 2);
+    to = hit ? hit.index : S.items.length;
+    mark.style.left = `${x(hit ? hit.start : S.total)}px`;
+    tip.hidden = false; tip.textContent = hit ? `before ${hit.section || 'clip'} · ${tc(hit.start)}` : 'to the end';
+    tip.style.left = `${ev.clientX + 12}px`; tip.style.top = `${ev.clientY - 28}px`;
+  }, async () => {
+    mark.remove(); node.classList.remove('moving');
+    if (!moving || to == null) return;
+    const index = to > it.index ? to - 1 : to;
+    if (index !== it.index) await op('clip_move', { id: it.id, index });
+    show(S.playhead);
+  });
+}
 
 function startTrim(e, handle) {
   e.preventDefault(); setRate(0);
@@ -857,17 +904,25 @@ $('cbox').addEventListener('submit', (e) => e.preventDefault());
 
 // ------------------------------------------------------------------ edit commands
 
+// A selected clip wins over I/O marks: the highlighted thing is what gets deleted.
 async function removeSelection(ripple) {
-  const r = markRange();
-  if (r) {
+  const it = S.sel && S.items.find((i) => i.id === S.sel), r = markRange();
+  if (it) {
     setRate(0);
-    if (await op('range_delete', { start: r[0], end: r[1], ripple })) { S.marks = { in: null, out: null }; renderMarks(); if (ripple) seek(r[0]); saveUi(); }
-  } else if (S.sel) {
-    const it = S.items.find((i) => i.id === S.sel);
-    if (!it) return;
+    if (await op('clip_delete', { ids: [it.id], ripple })) { S.sel = null; clearMarks(); if (ripple) seek(Math.min(it.start, S.total)); }
+  } else if (r) {
     setRate(0);
-    if (await op('clip_delete', { ids: [it.id], ripple })) { S.sel = null; if (ripple) seek(Math.min(it.start, S.total)); }
+    if (await op('range_delete', { start: r[0], end: r[1], ripple })) { clearMarks(); if (ripple) seek(r[0]); }
   } else toast('Select a clip or mark a range (I / O) first');
+}
+
+function clearMarks() { S.marks = { in: null, out: null }; renderMarks(); saveUi(); }
+
+// ⌘K: cut at the playhead and select the piece that ends there, so Delete removes it.
+async function splitAtPlayhead(frame = Math.round(S.playhead)) {
+  if (!(await op('clip_split', { frame }))) return;
+  const left = S.items.find((i) => i.start + i.dur === frame);
+  S.sel = left ? left.id : null; clearMarks(); renderTimeline(); seek(frame);
 }
 
 async function rippleTrim(side) {
@@ -894,7 +949,7 @@ addEventListener('keydown', (e) => {
   if (typing) return;
   const k = e.key.length === 1 ? e.key.toLowerCase() : e.key, cmd = e.metaKey || e.ctrlKey;
   let hit = true;
-  if (cmd && k === 'k') op('clip_split', { frame: Math.round(S.playhead) });
+  if (cmd && k === 'k') splitAtPlayhead();
   else if (cmd && k === 'z') history(e.shiftKey ? 'redo' : 'undo');
   else if (cmd && e.shiftKey && k === 'm') stepComment(-1);
   else if (cmd && e.shiftKey && k === 'x') { S.marks = { in: null, out: null }; renderMarks(); saveUi(); }
@@ -917,14 +972,16 @@ addEventListener('keydown', (e) => {
   else if (k === 'i') setMark('in', Math.round(S.playhead));
   else if (k === 'o') setMark('out', Math.round(S.playhead));
   else if (k === 'x') { const it = itemAt(S.playhead); if (it) { S.marks = { in: it.start, out: it.start + it.dur }; renderMarks(); saveUi(); } }
-  else if (k === 'Delete' || k === 'Backspace') removeSelection(e.shiftKey || e.altKey);
+  else if (k === 'Delete' || k === 'Backspace') removeSelection(!(e.shiftKey || e.altKey));
   else if (k === 'm') { if (e.shiftKey) stepComment(1); else openCommentBox(); }
   else if (k === 'Tab') cycleVersion();
   else if (k === 'd') toggleDiff();
   else if (k === '=' || k === '+') setZoom(S.ppf * 1.5);
   else if (k === '-') setZoom(S.ppf / 1.5);
   else if (k === '\\') { S.fit = true; renderTimeline(); scroller.scrollLeft = 0; }
-  else if (k === 'Escape') { S.marks = { in: null, out: null }; S.sel = null; renderMarks(); renderTimeline(); saveUi(); }
+  else if (!cmd && k === 'c') setTool(S.tool === 'razor' ? 'select' : 'razor');
+  else if (!cmd && k === 'v') setTool('select');
+  else if (k === 'Escape') { setTool('select'); S.marks = { in: null, out: null }; S.sel = null; renderMarks(); renderTimeline(); saveUi(); }
   else if (k === '?') $('keys').hidden = false;
   else hit = false;
   if (hit) e.preventDefault();
@@ -937,7 +994,8 @@ addEventListener('keyup', (e) => {
 });
 addEventListener('blur', () => { S.kHeld = false; });
 
-$('b-split').onclick = () => op('clip_split', { frame: Math.round(S.playhead) });
+$('b-split').onclick = () => splitAtPlayhead();
+$('b-razor').onclick = () => setTool(S.tool === 'razor' ? 'select' : 'razor');
 $('b-undo').onclick = () => history('undo');
 $('b-redo').onclick = () => history('redo');
 $('b-keys').onclick = () => { $('keys').hidden = false; };

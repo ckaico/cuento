@@ -100,6 +100,11 @@ select { background: var(--panel2); border: 1px solid var(--line); border-radius
 #lane-v1 { height: 58px; background: #141517; }
 .block { position: absolute; top: 2px; height: 54px; background: #2b3d5c; border: 1px solid #4a6593; border-radius: 4px; overflow: hidden; cursor: pointer; }
 .block.sel { border-color: #fff; box-shadow: inset 0 0 0 1px #fff; }
+.block.moving { opacity: .45; cursor: grabbing; }
+body.razor .block, body.razor .block .h { cursor: crosshair; }
+#razorline { position: absolute; top: 0; bottom: 0; width: 1px; background: #ff5a5a; z-index: 9; pointer-events: none; }
+#b-razor.on { background: #ff5a5a; color: #000; }
+#dropmark { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--sel); z-index: 9; pointer-events: none; }
 .block .thumb { position: absolute; left: 0; top: 0; bottom: 0; width: 92px; background: #111 center / cover no-repeat; }
 .block .txt { position: absolute; left: 96px; right: 6px; top: 3px; font-size: 10px; line-height: 1.25; color: #dfe6f3; max-height: 48px; overflow: hidden; }
 .block .h { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; z-index: 3; }

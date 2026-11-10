@@ -102,15 +102,16 @@ references and house rules; Claude reads it when the project opens.
 | Space, ←/→, ⇧←/→ | play/pause, one frame, five frames |
 | ↑/↓, Home/End | previous/next edit, start/end |
 | ⌘K | add edit at the playhead |
+| C / V | razor (click a clip to split it there) / select |
 | Q / W | ripple-trim previous / next edit to the playhead |
 | I / O / X | mark in, out, clip (Esc clears) |
-| Delete, ⇧Delete or ⌥Delete | lift, ripple delete |
+| Delete · ⇧Delete or ⌥Delete | ripple delete (closes the gap) · lift (leaves a gap) |
 | M, ⇧M, ⇧⌘M | comment at playhead, next, previous |
 | ⌘Z / ⇧⌘Z | undo / redo |
 | Tab, D | switch version at the same moment, show what only this version has |
 | = - \ | zoom in, out, fit |
 
-Drag a clip edge to trim by hand. Double-click a clip on A1 or A2 to choose which
+Drag a clip edge to trim by hand, or drag a clip to move it. Double-click a clip on A1 or A2 to choose which
 audio is heard for it.
 
 ## How it fits together

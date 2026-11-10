@@ -83,5 +83,5 @@ a layer, trimming clips and moving the playhead render nothing.
 ## Hotkeys (for when the user asks)
 
 J K L shuttle (tap L again for 2× 4× 8×; K+L slow; K+tap one frame) · Space · ←/→ frame, ⇧ = 5 ·
-↑/↓ edits · ⌘K split · Q / W ripple trim to playhead · I / O / X marks · Delete lift, ⇧Delete ripple ·
+↑/↓ edits · ⌘K split · C razor (click to split), V select · Q / W ripple trim to playhead · I / O / X marks · Delete ripple, ⇧Delete lift (leaves a gap) ·
 M comment, ⇧M / ⇧⌘M next / previous · ⌘Z / ⇧⌘Z · `?` shows the sheet in the editor.
