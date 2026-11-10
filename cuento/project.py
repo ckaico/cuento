@@ -408,7 +408,7 @@ class Project:
         if not os.path.exists(self.file):
             raise OpError(f"no project file at {self.file}")
         if os.path.getsize(self.file) == 0:
-            raise OpError(f"{self.file} reads empty (cloud placeholder?)")
+            raise OpError(f"{self.file} reads empty; if cloud-synced, download it before opening")
         head = _read_json(self.file)
         self.doc, self.hist = head["doc"], head["history"]
         self.ui = _read_json(os.path.join(path, "ui.json"), {"playhead": 0})

@@ -304,7 +304,7 @@ function syncLayers() {
         node.addEventListener('load', syncLayers);
         node.src = `/layer/${project}/${l.id}.html?h=${hash}`;
       }
-      // TODO(M3): behind_person needs the person matte; until then every layer draws over the picture
+      // Until person mattes are available, all layers render in front of the picture.
       node.style.zIndex = order[l.z] || 3;
       $('layers').appendChild(node);
       view = { node, kind }; views.set(key, view); fitLayers();

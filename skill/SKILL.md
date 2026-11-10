@@ -31,7 +31,7 @@ its own `project.json` next to its proxies.
    read them: they hold that project's look references and house rules, and they
    outrank the defaults below.
 
-With no project named, run `cuento list` and ask which one.
+If the user has not named a project, run `cuento list` and request their selection before opening it.
 
 ## MCP tools (server `cuento`, tools appear as `mcp__cuento__<name>`)
 
