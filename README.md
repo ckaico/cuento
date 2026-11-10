@@ -142,8 +142,10 @@ Each version carries its own sequence, layers and comments. Every edit tool work
 on the active one; `timeline_get` and `version_diff` read any of them.
 
 The Chat tab sends your message to `claude -p` with a role and a model per mode.
-Passes run under your own Claude Code login and count against its usage; a story
-pass over a ten-minute cut costs real tokens. Set the models in `~/.cuento/config.json`:
+Passes run under your own Claude Code login, so on a Pro or Max plan they draw on
+your plan's usage like any other session; they are never billed to an API key.
+A story pass on a strong model uses a noticeable share of that allowance. Set the
+models in `~/.cuento/config.json`:
 
 ```json
 { "models": { "edit": "claude-opus-5-5", "story": "fable" } }

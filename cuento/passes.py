@@ -8,7 +8,9 @@ while a stronger one is called in for a story pass:
   story  a read-only pass over every version that reports the strongest story;
          its report is handed to the edit conversation on the next message
 
-Passes run under the user's own Claude Code login and count against its usage.
+Passes run under the user's own Claude Code login, so they draw on that plan's
+usage like any other Claude Code session. API-key variables are removed from the
+pass environment so a pass can never be billed per token by accident.
 Models are set in ~/.cuento/config.json: {"models": {"edit": "...", "story": "..."}}
 """
 import json
@@ -131,6 +133,9 @@ def _run(p, mode, m, user, reply_id):
         base = [exe, "-p", prompt, "--model", m["model"], "--output-format", "json",
                 "--append-system-prompt", m["role"], "--allowedTools", *m["tools"]]
         env = dict(os.environ, PATH=f"/opt/homebrew/bin:{os.path.expanduser('~/.local/bin')}:{os.environ.get('PATH', '')}")
+        # passes must ride on the Claude Code login (the subscription), never on a metered API key
+        for key in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
+            env.pop(key, None)
         attempts = [[]]
         if mode == "edit":
             sid = chat.get("edit_session")
