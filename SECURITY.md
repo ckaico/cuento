@@ -15,6 +15,9 @@ Things to know before you open someone else's project:
 - **A project file names files on disk.** `project.json` holds absolute paths to
   proxies and camera originals, and the daemon serves the proxies it points at to
   the local editor. Only register projects you made or trust.
+- **The Chat tab runs an agent.** A message there starts a headless Claude Code run under your login, allowed to
+  call the cuento MCP tools and nothing else (no shell, no file access); the story pass is limited to the
+  read-only tools. It is started only by the local editor.
 - The MCP server is a client of the local daemon. It exposes edit operations on
   registered projects and nothing else on the machine.
 

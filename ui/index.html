@@ -11,6 +11,7 @@
   <div class="brand">Cuento <span id="pname"></span></div>
   <div id="tc" title="timeline timecode · frame">00:00:00</div>
   <div id="rate">❚❚</div>
+  <div id="versions" title="Versions of this cut. Tab switches, D shows what differs."></div>
   <div id="clipinfo"></div>
   <div class="spacer"></div>
   <button id="b-split" title="Add edit at playhead (⌘K)">Split</button>
@@ -42,6 +43,7 @@
       <button data-tab="comments" class="on">Comments <span id="n-open"></span></button>
       <button data-tab="transcript">Transcript</button>
       <button data-tab="layerlist">Layers</button>
+      <button data-tab="chat">Chat</button>
     </nav>
     <div id="comments" class="tab on"></div>
     <div id="transcript" class="tab">
@@ -49,6 +51,13 @@
       <div id="tlist"></div>
     </div>
     <div id="layerlist" class="tab"></div>
+    <div id="chat" class="tab">
+      <div id="chatlog"></div>
+      <form id="chatform">
+        <div class="row"><select id="chatmode" title="Which pass gets this message"></select><span id="chatbusy"></span></div>
+        <textarea id="chattext" rows="2" placeholder="Tell the edit pass what to do, or run a story pass. Enter to send."></textarea>
+      </form>
+    </div>
   </aside>
 </main>
 
@@ -82,6 +91,7 @@
       <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>lift · ripple delete (marked range, else selected clip)</td></tr>
       <tr><td>M · ⇧M · ⇧⌘M</td><td>comment at playhead · next comment · previous comment</td></tr>
       <tr><td>⌘Z · ⇧⌘Z</td><td>undo · redo</td></tr>
+      <tr><td>Tab · D</td><td>switch version at the same moment · show what only this version has</td></tr>
       <tr><td>= · - · \</td><td>zoom in · out · fit</td></tr>
       <tr><td>Drag a clip edge</td><td>trim by hand (both audio tracks follow)</td></tr>
       <tr><td>Double-click A1 / A2</td><td>hear camera audio or lav for that clip</td></tr>

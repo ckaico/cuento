@@ -361,6 +361,129 @@ def op_audio_effect(doc, track, start, dur, chain, id=None):
     return {"id": fx["id"]}
 
 
+# ---- versions
+# A project holds several cuts of the same footage (a shorter and a longer one,
+# say). One is active: its sequence, layers, comments and audio marks sit at the
+# top level of the doc, where every other operation works. The rest are parked
+# whole under doc["versions"]. Switching swaps them.
+
+VERSIONED = ("seq", "layers", "comments", "audio_fx")
+
+
+def version_names(doc):
+    return [doc.get("version", "A"), *doc.get("versions", {})]
+
+
+def version_state(doc, name=None):
+    """The seq/layers/comments/audio_fx of any version, active or parked."""
+    if name in (None, doc.get("version", "A")):
+        return {k: doc[k] for k in VERSIONED}
+    try:
+        return doc["versions"][name]
+    except KeyError:
+        raise OpError(f"no version {name!r}; have {version_names(doc)}")
+
+
+def seq_layout(seq):
+    out, t = [], 0
+    for it in seq:
+        d = item_dur(it)
+        out.append((it, t, d))
+        t += d
+    return out, t
+
+
+def _covered(seq):
+    """Per source, the merged frame ranges a sequence uses."""
+    spans = {}
+    for it in seq:
+        if it["type"] == "block":
+            spans.setdefault(it["source"], []).append([it["in"], it["out"]])
+    for sid, rs in spans.items():
+        rs.sort()
+        merged = [rs[0]]
+        for a, b in rs[1:]:
+            if a <= merged[-1][1]:
+                merged[-1][1] = max(merged[-1][1], b)
+            else:
+                merged.append([a, b])
+        spans[sid] = merged
+    return spans
+
+
+def version_diff(doc, a, b):
+    """What each of two versions has that the other does not, by source footage."""
+    out = {}
+    for name, other in ((a, b), (b, a)):
+        seq, there = version_state(doc, name)["seq"], _covered(version_state(doc, other)["seq"])
+        only, total = [], seq_layout(seq)[1]
+        for it, s, d in seq_layout(seq)[0]:
+            if it["type"] != "block":
+                continue
+            shared = sum(max(0, min(it["out"], y) - max(it["in"], x)) for x, y in there.get(it["source"], []))
+            if shared < d:
+                only.append({"id": it["id"], "start": s, "tc": timecode(s), "dur": d, "frames_only_here": d - shared,
+                             "whole_clip": shared == 0, "source": it["source"], "in": it["in"], "out": it["out"],
+                             "section": it.get("section", ""), "text": it.get("text", "")})
+        out[name] = {"total_frames": total, "total_tc": timecode(total), "frames_only_here": sum(o["frames_only_here"] for o in only),
+                     "clips_only_here": only}
+    return out
+
+
+def op_version_add(doc, name, seq):
+    """Add a parked version from a list of {source, in, out, section, text}."""
+    if not name or name in version_names(doc):
+        raise OpError(f"version name {name!r} is empty or taken")
+    blocks = []
+    for r in seq:
+        fin, fout = int(r["in"]), int(r["out"])
+        _check_range(doc, r["source"], fin, fout)
+        blocks.append({"id": new_id("b"), "type": "block", "source": r["source"], "in": fin, "out": fout,
+                       "section": r.get("section", ""), "text": r.get("text", ""), "note": r.get("note", ""),
+                       "audio": r.get("audio", "lav")})
+    doc.setdefault("versions", {})[name] = {"seq": blocks, "layers": [], "comments": [], "audio_fx": []}
+    return {"version": name, "clips": len(blocks)}
+
+
+def op_version_duplicate(doc, name, source=None):
+    if not name or name in version_names(doc):
+        raise OpError(f"version name {name!r} is empty or taken")
+    doc.setdefault("versions", {})[name] = copy.deepcopy(version_state(doc, source))
+    return {"version": name, "from": source or doc.get("version", "A")}
+
+
+def op_version_switch(doc, name):
+    cur = doc.get("version", "A")
+    if name == cur:
+        return {"version": cur}
+    state = version_state(doc, name)
+    doc.setdefault("versions", {})[cur] = {k: doc[k] for k in VERSIONED}
+    del doc["versions"][name]
+    for k in VERSIONED:
+        doc[k] = state[k]
+    doc["version"] = name
+    return {"version": name}
+
+
+def op_version_rename(doc, name, to):
+    if not to or to in version_names(doc):
+        raise OpError(f"version name {to!r} is empty or taken")
+    if name == doc.get("version", "A"):
+        doc["version"] = to
+    else:
+        doc["versions"][to] = version_state(doc, name)
+        del doc["versions"][name]
+    return {"version": to}
+
+
+def op_version_delete(doc, name):
+    if name == doc.get("version", "A"):
+        raise OpError("switch to another version before deleting this one")
+    version_state(doc, name)
+    del doc["versions"][name]
+    return {"deleted": name}
+
+
 OPS = {name[3:]: fn for name, fn in list(globals().items()) if name.startswith("op_")}
 
 
@@ -393,7 +516,7 @@ def register(name, path):
 
 
 def empty_doc(name):
-    return {"cuento": 1, "name": name, "fps": [FPS_NUM, FPS_DEN], "sources": {},
+    return {"cuento": 1, "name": name, "fps": [FPS_NUM, FPS_DEN], "sources": {}, "version": "A", "versions": {},
             "seq": [], "layers": [], "comments": [], "audio_fx": []}
 
 
@@ -411,6 +534,8 @@ class Project:
             raise OpError(f"{self.file} reads empty; if cloud-synced, download it before opening")
         head = _read_json(self.file)
         self.doc, self.hist = head["doc"], head["history"]
+        self.doc.setdefault("version", "A")
+        self.doc.setdefault("versions", {})
         self.ui = _read_json(os.path.join(path, "ui.json"), {"playhead": 0})
         self.cache = os.path.join(CACHE, name)
         os.makedirs(self.cache, exist_ok=True)

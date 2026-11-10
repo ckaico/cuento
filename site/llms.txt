@@ -4,7 +4,7 @@
 
 - License: Apache-2.0. Author: Christian Kai (CKAI).
 - Runs locally on macOS: Python 3.11+, ffmpeg, a Chromium-based browser. No Python packages, no Node, no account, nothing uploaded.
-- Built today: timeline editing on proxies (J/K/L shuttle to 8x, add edit, ripple trims), linked camera + external audio, comments as tasks, alpha layers (VP9-alpha WebM preview, ProRes 4444 master), shared undo history, MCP server with 24 tools, /cuento skill.
+- Built today: timeline editing on proxies (J/K/L shuttle to 8x, add edit, ripple trims), linked camera + external audio, comments as tasks, alpha layers (VP9-alpha WebM preview, ProRes 4444 master), shared undo history, versions (shorter and longer cuts with a diff view), in-editor chat passes with a model per role, MCP server with 28 tools, /cuento skill.
 - Not built yet: person matte, export to Premiere / Resolve / OpenTimelineIO, voice comments, brand kits, frame rates other than 23.976.
 
 ## Links

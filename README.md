@@ -43,7 +43,9 @@ scrub, undo: render none.
 - **Comments as tasks** on exact ranges, for picture or either audio track. Editing a resolved comment reopens it.
 - **Alpha layers**: HTML/CSS/canvas elements rendered frame by frame through headless Chrome to VP9-alpha WebM (preview) or ProRes 4444 (master), composited live in the browser.
 - **One history**: hand edits and Claude's edits go through the same operations into the same project file, with undo and a snapshot per revision.
-- **MCP server** with 24 tools (timeline, clips, comments, layers, audio marks, transcript search, playhead, undo) and a `/cuento` skill.
+- **Versions**: keep a shorter and a longer cut of the same footage in one project. Tab switches between them at the same source moment; D marks what only this version has.
+- **Chat passes with model tiers**: a Chat tab in the editor runs headless Claude Code passes. Edit is one continuing conversation that changes the timeline on a fast model; Story is a read-only pass on a stronger model that looks for the best story across your versions and hands its findings to the edit chat.
+- **MCP server** with 28 tools (timeline, clips, versions, comments, layers, audio marks, transcript search, playhead, undo) and a `/cuento` skill.
 
 Not built yet: person matte for text behind the head (M3), OpenTimelineIO /
 Premiere / Resolve export (M4), voice comments (M5), brand kits (M6). See
@@ -105,6 +107,7 @@ references and house rules; Claude reads it when the project opens.
 | Delete, ⇧Delete or ⌥Delete | lift, ripple delete |
 | M, ⇧M, ⇧⌘M | comment at playhead, next, previous |
 | ⌘Z / ⇧⌘Z | undo / redo |
+| Tab, D | switch version at the same moment, show what only this version has |
 | = - \ | zoom in, out, fit |
 
 Drag a clip edge to trim by hand. Double-click a clip on A1 or A2 to choose which
@@ -128,6 +131,26 @@ cuento mcp (stdio)             thin client of the daemon
 - **Comment**: a task on a range and a target (picture, A1, A2).
 - **Layer**: one HTML element on a 1920×1080 transparent stage, with a range, a z slot and its prompt history. Its render is keyed by a hash of its source and length.
 - Comments, layers and audio marks ride on the clip they start in, so a ripple edit upstream carries them along.
+
+### Versions and chat passes
+
+```bash
+bin/cuento add-version myfilm --edl long_cut.json --name "B full" --rename-current "A tight"
+```
+
+Each version carries its own sequence, layers and comments. Every edit tool works
+on the active one; `timeline_get` and `version_diff` read any of them.
+
+The Chat tab sends your message to `claude -p` with a role and a model per mode.
+Passes run under your own Claude Code login and count against its usage; a story
+pass over a ten-minute cut costs real tokens. Set the models in `~/.cuento/config.json`:
+
+```json
+{ "models": { "edit": "claude-opus-5-5", "story": "fable" } }
+```
+
+The edit pass may call every cuento tool and nothing else. The story pass may only
+call the read-only ones.
 
 ### Writing a layer
 

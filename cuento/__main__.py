@@ -72,6 +72,11 @@ def main():
     i.add_argument("--dir", help="project folder (default: the proxies folder's parent)")
     i.add_argument("--camera-dir")
     i.add_argument("--lav-dir")
+    v = sub.add_parser("add-version", help="add another cut (e.g. the longer one) from an EDL")
+    v.add_argument("project")
+    v.add_argument("--edl", required=True)
+    v.add_argument("--name", required=True)
+    v.add_argument("--rename-current", help="also name the version that is there now, e.g. 'A tight'")
     c = sub.add_parser("cam-audio", help="extract camera mic audio for A1 from the camera originals")
     c.add_argument("project")
     a = ap.parse_args()
@@ -108,6 +113,17 @@ def main():
                 subprocess.run(["open", url])
         elif a.cmd == "import-edl":
             import_edl(a.name, a.edl, a.proxies, a.dir, a.camera_dir, a.lav_dir)
+        elif a.cmd == "add-version":
+            # goes through the daemon: it holds the project in memory and owns the undo history
+            mcp.ensure_daemon()
+            with open(a.edl) as f:
+                rows = json.load(f)
+            seq = [{"source": r["clip"], "in": r["in_frame"], "out": r["out_frame"], "section": r.get("section", ""),
+                    "text": r.get("text", ""), "note": r.get("note", "")} for r in rows]
+            if a.rename_current:
+                cur = mcp.http(f"/api/p/{a.project}/timeline", {})["active_version"]
+                mcp.http(f"/api/p/{a.project}/op", {"op": "version_rename", "args": {"name": cur, "to": a.rename_current}, "actor": "cli"})
+            print(mcp.http(f"/api/p/{a.project}/op", {"op": "version_add", "args": {"name": a.name, "seq": seq}, "actor": "cli"})["result"])
         elif a.cmd == "cam-audio":
             cam_audio(a.project)
     except (OpError, RuntimeError) as e:

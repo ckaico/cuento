@@ -40,6 +40,7 @@ If the user has not named a project, run `cuento list` and request their selecti
 | `project_list`, `project_open` | find and open a project, get the editor URL |
 | `timeline_get` | every clip: id, start, source in/out, section, transcript text; layers; playhead; marks |
 | `clip_trim`, `clip_split`, `clip_move`, `clip_delete`, `clip_insert`, `clip_set` | edit the cut. A1 camera and A2 lav audio derive from the clip, so they always follow |
+| `version_list`, `version_diff`, `version_switch`, `version_duplicate` | several cuts of the same footage (a shorter and a longer one). Edit tools work on the active version; pass `version` to `timeline_get` to read another |
 | `comment_list`, `comment_add`, `comment_reply`, `comment_resolve` | the task queue |
 | `layer_list`, `layer_get`, `layer_create`, `layer_update`, `layer_render`, `layer_delete` | overlay elements, one alpha file each |
 | `audio_effect` | mark an effect chain on A1 or A2 over a range (applied at export) |

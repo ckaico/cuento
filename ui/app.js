@@ -12,6 +12,7 @@ const S = {
   doc: null, rev: 0, items: [], total: 0, media: {}, renders: {},
   playhead: 0, rate: 0, sel: null, marks: { in: null, out: null },
   ppf: 1, fit: true, layerMode: 'rendered', curComment: null, curLayer: null, kHeld: false,
+  diff: false, only: new Map(), chat: null,
 };
 
 const tc = (f) => { f = Math.max(0, Math.floor(f)); const s = Math.floor(f / 24); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}:${String(f % 24).padStart(2, '0')}`; };
@@ -57,7 +58,7 @@ async function refresh(force) {
     const docChanged = st.rev !== S.rev || !S.doc;
     S.doc = st.doc; S.rev = st.rev; S.media = st.media; S.renders = st.renders;
     $('b-undo').disabled = !st.can_undo; $('b-redo').disabled = !st.can_redo;
-    if (docChanged) index(st.doc);
+    if (docChanged) { index(st.doc); computeDiff(); renderVersions(); }
     if (!S.booted) {
       S.booted = true;
       S.playhead = Math.min(st.ui.playhead || 0, S.total);
@@ -100,6 +101,7 @@ function listen() {
   es.onmessage = (m) => {
     const ev = JSON.parse(m.data);
     if (ev.type === 'ui' && ev.ui.playhead != null) { setRate(0); seek(ev.ui.playhead); return; }
+    if (ev.type === 'chat') { loadChat(); return; }
     if (ev.type === 'doc' && ev.actor !== 'ui') toast(`${ev.actor}: ${ev.op.replace('_', ' ')}`);
     refresh(true);
   };
@@ -360,6 +362,7 @@ function renderTimeline() {
     n.style.left = `${x(it.start)}px`; n.style.width = `${Math.max(2, x(it.dur) - 1)}px`;
     n.dataset.id = it.id;
     if (it.id === S.sel) n.classList.add('sel');
+    if (S.diff && S.only.has(it.id)) n.classList.add(S.only.get(it.id));
     if (it.type === 'block') {
       n.title = `${it.section || ''}\n${it.text || ''}\n${it.source} ${it.in}–${it.out} · ${tc(it.dur)} · audio: ${it.audio || 'lav'}`;
       const w = x(it.dur), ready = S.media[it.source] && S.media[it.source].ready;
@@ -608,6 +611,116 @@ function startLayerMove(e, node) {
   }, () => { if (start !== l.start) op('layer_update', { id: l.id, start }); else renderLayerBars(); });
 }
 
+// ------------------------------------------------------------------ versions
+// A project keeps more than one cut of the same footage. Switching lands on the
+// same source moment when the other cut has it, so two versions can be compared
+// in place. Diff marks what only this version has.
+
+function versionNames() { return [S.doc.version || 'A', ...Object.keys(S.doc.versions || {})].sort(); }
+function otherVersion() { const n = versionNames(); return n.length < 2 ? null : n[(n.indexOf(S.doc.version || 'A') + 1) % n.length]; }
+function seqOf(name) { return name === (S.doc.version || 'A') ? S.doc.seq : S.doc.versions[name].seq; }
+const seqDur = (seq) => seq.reduce((t, it) => t + (it.type === 'gap' ? it.dur : it.out - it.in), 0);
+
+function computeDiff() {
+  S.only = new Map(); S.diffInfo = null;
+  const other = otherVersion();
+  if (!other) return;
+  const there = {};
+  for (const it of seqOf(other)) if (it.type === 'block') (there[it.source] ||= []).push([it.in, it.out]);
+  let frames = 0;
+  for (const it of S.items) {
+    if (it.type !== 'block') continue;
+    // parked ranges of one source can overlap after edits; count each frame once
+    const cuts = (there[it.source] || []).map(([a, b]) => [Math.max(a, it.in), Math.min(b, it.out)]).filter(([a, b]) => b > a).sort((p, q) => p[0] - q[0]);
+    let shared = 0, end = it.in;
+    for (const [a, b] of cuts) { if (b > end) { shared += b - Math.max(a, end); end = b; } }
+    if (shared < it.dur) { S.only.set(it.id, shared === 0 ? 'only' : 'part'); frames += it.dur - shared; }
+  }
+  S.diffInfo = { other, frames, clips: S.only.size };
+}
+
+function renderVersions() {
+  const box = $('versions'); box.textContent = '';
+  const names = versionNames();
+  for (const name of names) {
+    const b = el('button', name === (S.doc.version || 'A') ? 'on' : null, name);
+    b.appendChild(el('small', null, tc(seqDur(seqOf(name)))));
+    b.onclick = () => { b.blur(); switchVersion(name); };
+    box.appendChild(b);
+  }
+  if (names.length > 1) {
+    const d = el('button', S.diff ? 'on' : null, 'Diff');
+    d.title = 'Mark what only this version has (D)';
+    d.onclick = () => { d.blur(); toggleDiff(); };
+    box.appendChild(d);
+    if (S.diff && S.diffInfo) box.appendChild(el('span', 'diffinfo', S.diffInfo.clips ? `${S.diffInfo.clips} clips, ${tc(S.diffInfo.frames)} not in ${S.diffInfo.other}` : `nothing ${S.diffInfo.other} lacks`));
+  }
+}
+
+function toggleDiff() { S.diff = !S.diff; renderVersions(); renderTimeline(); }
+
+async function switchVersion(name) {
+  if (name === (S.doc.version || 'A')) return;
+  const it = itemAt(S.playhead);
+  const at = it && it.type === 'block' ? { sid: it.source, f: it.in + Math.floor(S.playhead) - it.start } : null;
+  setRate(0);
+  if (!await op('version_switch', { name })) return;
+  if (at) {
+    const same = S.items.filter((i) => i.type === 'block' && i.source === at.sid);
+    const hit = same.find((i) => i.in <= at.f && at.f < i.out);
+    const near = hit || same.sort((a, b) => Math.abs(a.in - at.f) - Math.abs(b.in - at.f))[0];
+    if (near) seek(hit ? near.start + at.f - near.in : near.start);
+  }
+  revealPlayhead();
+  toast(`Version ${name}`);
+}
+
+function cycleVersion() { const o = otherVersion(); if (o) switchVersion(o); else toast('This project has one version'); }
+
+// ------------------------------------------------------------------ chat
+// Messages go to a headless Claude Code pass run by the daemon. Edit is one
+// continuing conversation that changes the timeline; Story is a read-only pass
+// whose report is handed to the edit conversation with the next message.
+
+async function loadChat() {
+  try { S.chat = await (await fetch(`/api/p/${encodeURIComponent(project)}/chat`)).json(); renderChat(); } catch { /* daemon restarting */ }
+}
+
+function renderChat() {
+  const c = S.chat, log = $('chatlog'), sel = $('chatmode');
+  if (!c) return;
+  if (!sel.options.length) for (const [key, m] of Object.entries(c.modes)) { const o = el('option', null, `${m.label} · ${m.model}`); o.value = key; sel.appendChild(o); }
+  const stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+  log.textContent = '';
+  if (!c.messages.length) log.appendChild(el('div', 'empty', 'Talk to the edit here: "tighten the intro", "work the comments", "make the short version open on the pirate line". Switch the menu to Story for a read-only pass that looks for the best story across your versions; its findings go to the edit chat with your next message.'));
+  for (const m of c.messages) {
+    const n = el('div', `msg ${m.role === 'user' ? 'user' : m.mode} ${m.status || ''}`);
+    const who = el('div', 'who');
+    who.appendChild(el('span', null, m.role === 'user' ? `You → ${c.modes[m.mode] ? c.modes[m.mode].label : m.mode}` : `${c.modes[m.mode] ? c.modes[m.mode].label : m.mode} · ${m.model}`));
+    if (m.status === 'running') who.appendChild(el('span', 'pill rendering', 'working'));
+    if (m.status === 'error') who.appendChild(el('span', 'pill error', 'failed'));
+    if (m.role === 'pass' && m.mode === 'story' && m.status === 'done') who.appendChild(el('span', `pill ${m.fed ? 'resolved' : 'open'}`, m.fed ? 'sent to edit' : 'goes to edit next'));
+    n.append(who, el('div', 'body', m.status === 'running' ? 'Reading the timeline…' : m.text));
+    log.appendChild(n);
+  }
+  if (stick) log.scrollTop = log.scrollHeight;
+  $('chatbusy').textContent = c.busy ? `${c.modes[c.busy].label} pass running…` : '';
+  $('chattext').disabled = !!c.busy;
+}
+
+async function sendChat() {
+  const text = $('chattext').value.trim(), mode = $('chatmode').value;
+  if (!text && mode !== 'story') return;
+  try { await api('chat', { mode, text }); $('chattext').value = ''; } catch (e) { toast(e.message, true); }
+  loadChat();
+}
+$('chattext').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  if (e.key === 'Escape') $('chattext').blur();
+});
+$('chatform').addEventListener('submit', (e) => e.preventDefault());
+$('chatmode').addEventListener('change', () => { $('chattext').placeholder = $('chatmode').value === 'story' ? 'Optional: what to look for. Enter runs the story pass.' : 'Tell the edit pass what to do. Enter to send.'; });
+
 // ------------------------------------------------------------------ rail
 
 function showTab(name) {
@@ -806,6 +919,8 @@ addEventListener('keydown', (e) => {
   else if (k === 'x') { const it = itemAt(S.playhead); if (it) { S.marks = { in: it.start, out: it.start + it.dur }; renderMarks(); saveUi(); } }
   else if (k === 'Delete' || k === 'Backspace') removeSelection(e.shiftKey || e.altKey);
   else if (k === 'm') { if (e.shiftKey) stepComment(1); else openCommentBox(); }
+  else if (k === 'Tab') cycleVersion();
+  else if (k === 'd') toggleDiff();
   else if (k === '=' || k === '+') setZoom(S.ppf * 1.5);
   else if (k === '-') setZoom(S.ppf / 1.5);
   else if (k === '\\') { S.fit = true; renderTimeline(); scroller.scrollLeft = 0; }
@@ -848,6 +963,7 @@ async function boot() {
   }
   try { await refresh(true); } catch (e) { toast(e.message, true); return; }
   listen();
+  loadChat();
   revealPlayhead();
 }
 boot();

@@ -82,6 +82,30 @@ class Ops(unittest.TestCase):
         self.assertNotEqual(P.layer_hash(d["layers"][0]), h)
 
 
+class Versions(unittest.TestCase):
+    def test_switch_keeps_each_cut_whole(self):
+        d = doc()
+        run(d, "comment_add", start=10, text="on A")
+        run(d, "version_add", name="B", seq=[{"source": "A", "in": 100, "out": 200}, {"source": "A", "in": 800, "out": 900}])
+        run(d, "version_switch", name="B")
+        self.assertEqual((d["version"], len(d["seq"]), d["comments"]), ("B", 2, []))
+        self.assertEqual(len(d["versions"]["A"]["seq"]), 3)
+        run(d, "clip_trim", id=d["seq"][0]["id"], out=150)
+        run(d, "version_switch", name="A")
+        self.assertEqual((len(d["seq"]), d["comments"][0]["text"]), (3, "on A"))
+        self.assertEqual(d["versions"]["B"]["seq"][0]["out"], 150)
+
+    def test_diff_is_by_source_footage(self):
+        d = doc()
+        run(d, "version_add", name="B", seq=[{"source": "A", "in": 100, "out": 180}, {"source": "A", "in": 800, "out": 900}])
+        x = P.version_diff(d, "A", "B")
+        self.assertEqual(x["A"]["frames_only_here"], 20 + 50 + 200)
+        self.assertEqual([c["whole_clip"] for c in x["A"]["clips_only_here"]], [False, True, True])
+        self.assertEqual(x["B"]["frames_only_here"], 100)
+        with self.assertRaises(P.OpError):
+            run(d, "version_delete", name="A")
+
+
 class History(unittest.TestCase):
     def test_undo_redo_persist(self):
         with tempfile.TemporaryDirectory() as tmp:

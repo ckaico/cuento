@@ -10,8 +10,9 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import media, render
-from .project import HOME, OpError, layout, open_project, registry, timecode
+from . import media, passes, render
+from .project import (HOME, OpError, layout, open_project, registry, seq_layout, timecode, version_diff,
+                      version_names, version_state)
 
 PORT = int(os.environ.get("CUENTO_PORT", "47821"))
 UI_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ui")
@@ -108,9 +109,21 @@ def full_state(p):
     return s
 
 
-def timeline_view(p, start=None, end=None):
+def versions_view(p):
+    out = []
+    for name in sorted(version_names(p.doc)):
+        st = version_state(p.doc, name)
+        total = seq_layout(st["seq"])[1]
+        out.append({"name": name, "active": name == p.doc.get("version", "A"), "total_frames": total,
+                    "total_tc": timecode(total), "clips": sum(1 for it in st["seq"] if it["type"] == "block"),
+                    "layers": len(st["layers"]), "open_comments": sum(1 for c in st["comments"] if c["status"] == "open")})
+    return {"versions": out}
+
+
+def timeline_view(p, start=None, end=None, version=None):
     """Compact timeline for Claude: one row per clip, frames and timecodes."""
-    items, total = layout(p.doc)
+    st = version_state(p.doc, version)
+    items, total = seq_layout(st["seq"])
     rows = []
     for i, (it, s, d) in enumerate(items):
         if (start is not None and s + d <= start) or (end is not None and s >= end):
@@ -120,11 +133,13 @@ def timeline_view(p, start=None, end=None):
             row.update(source=it["source"], **{"in": it["in"], "out": it["out"]}, audio=it.get("audio", "lav"),
                        section=it.get("section", ""), text=it.get("text", ""))
         rows.append(row)
-    return {"project": p.name, "rev": p.rev, "fps": "24000/1001", "total_frames": total, "total_tc": timecode(total),
-            "playhead": p.ui.get("playhead", 0), "marks": p.ui.get("marks"), "clips": rows,
-            "layers": [{k: l[k] for k in ("id", "name", "start", "dur", "z", "comment_id")} for l in p.doc["layers"]],
-            "audio_fx": p.doc["audio_fx"],
-            "open_comments": sum(1 for c in p.doc["comments"] if c["status"] == "open")}
+    active = p.doc.get("version", "A")
+    return {"project": p.name, "rev": p.rev, "version": version or active, "active_version": active,
+            "versions": sorted(version_names(p.doc)), "fps": "24000/1001", "total_frames": total,
+            "total_tc": timecode(total), "playhead": p.ui.get("playhead", 0), "marks": p.ui.get("marks"), "clips": rows,
+            "layers": [{k: l[k] for k in ("id", "name", "start", "dur", "z", "comment_id")} for l in st["layers"]],
+            "audio_fx": st["audio_fx"],
+            "open_comments": sum(1 for c in st["comments"] if c["status"] == "open")}
 
 
 def transcript_search(p, query):
@@ -257,6 +272,8 @@ class Handler(BaseHTTPRequestHandler):
             if parts[3] == "state":
                 queue_missing_renders(p)
                 return self._send(200, full_state(p))
+            if parts[3] == "chat":
+                return self._send(200, passes.view(p))
             return self._send(404, {"error": "not found"})
         if len(parts) < 3:
             return self._send(404, {"error": "not found"})
@@ -310,7 +327,21 @@ class Handler(BaseHTTPRequestHandler):
             p.set_ui(body.get("ui", {}), actor)
             return self._send(200, {"ui": p.ui})
         if action == "timeline":
-            return self._send(200, timeline_view(p, body.get("start"), body.get("end")))
+            return self._send(200, timeline_view(p, body.get("start"), body.get("end"), body.get("version")))
+        if action == "versions":
+            return self._send(200, versions_view(p))
+        if action == "diff":
+            names = sorted(version_names(p.doc))
+            a = body.get("a") or p.doc.get("version", "A")
+            b = body.get("b") or next((n for n in names if n != a), None)
+            if not b:
+                raise OpError("this project has one version; add or duplicate one first")
+            return self._send(200, version_diff(p.doc, a, b))
+        if action == "chat":
+            try:
+                return self._send(200, {"reply": passes.send(p, body.get("mode", "edit"), body.get("text", ""))})
+            except ValueError as e:
+                raise OpError(str(e))
         if action == "search":
             return self._send(200, transcript_search(p, body["query"]))
         if action == "render":

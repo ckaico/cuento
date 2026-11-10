@@ -102,7 +102,15 @@ def t_project_open(a):
 
 
 def t_timeline_get(a):
-    return http(f"/api/p/{a['project']}/timeline", {"start": a.get("start"), "end": a.get("end")})
+    return http(f"/api/p/{a['project']}/timeline", {"start": a.get("start"), "end": a.get("end"), "version": a.get("version")})
+
+
+def t_version_list(a):
+    return http(f"/api/p/{a['project']}/versions", {})
+
+
+def t_version_diff(a):
+    return http(f"/api/p/{a['project']}/diff", {"a": a.get("a"), "b": a.get("b")})
 
 
 def t_comment_list(a):
@@ -174,8 +182,17 @@ TOOLS = [
     tool("project_open", "Start the daemon if needed and return the editor URL plus a project summary. "
          "Open the URL in Claude's browser pane so the user can edit by hand.", t_project_open),
     tool("timeline_get", "Read the timeline: every clip with id, timeline start, source in/out (frames), section "
-         "and transcript text; plus layers, audio effects, playhead and marks. Optional frame window.",
-         t_timeline_get, {"start": FRAME, "end": FRAME}),
+         "and transcript text; plus layers, audio effects, playhead and marks. Optional frame window. Pass "
+         "`version` to read a cut the user is not viewing, without switching.",
+         t_timeline_get, {"start": FRAME, "end": FRAME, "version": S}),
+    tool("version_list", "List the project's versions (for example a shorter and a longer cut) with lengths; one is active.",
+         t_version_list),
+    tool("version_diff", "What two versions each have that the other lacks, by source footage: clips and frames only "
+         "in one. Defaults to the active version against the other one.", t_version_diff, {"a": S, "b": S}),
+    tool("version_switch", "Make another version the active one. Every edit tool works on the active version, and "
+         "the user's editor follows the switch.", _op("version_switch"), {"name": S}, ["name"]),
+    tool("version_duplicate", "Copy a version (the active one unless `source` is given) under a new name, to try a "
+         "change without touching the original.", _op("version_duplicate"), {"name": S, "source": S}, ["name"]),
     tool("clip_trim", "Set a clip's source in and/or out frame (out is exclusive). Ripples the timeline. Camera "
          "audio (A1) and lav audio (A2) are derived from the clip, so both always follow.",
          _op("clip_trim"), {"id": S, "in": F, "out": F}, ["id"]),
