@@ -66,6 +66,9 @@ h1 em, .why em { font-style: italic; color: var(--amber); }
 .strip { position: relative; display: flex; gap: 3px; height: 14px; padding: 3px; background: #0d0c0b; border-top: 1px solid var(--hair); }
 .strip i { border-radius: 3px; background: #2b3a55; }
 .strip i.hot { background: var(--amber); }
+/* clip lengths of the recorded cut; set here because the page's policy forbids inline styles */
+.strip i:nth-child(1) { flex: 17; } .strip i:nth-child(2) { flex: 19; } .strip i:nth-child(3) { flex: 7; }
+.strip i:nth-child(4) { flex: 12; } .strip i:nth-child(5) { flex: 23; } .strip i:nth-child(6) { flex: 22; }
 .strip b { position: absolute; top: -3px; bottom: -3px; left: 0; width: 2px; margin-left: 3px; background: var(--play); border-radius: 2px; will-change: transform; }
 .screen figcaption { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; padding: 12px 14px; border-top: 1px solid var(--hair); }
 .screen .cap { margin-left: auto; text-transform: none; letter-spacing: 0; }
