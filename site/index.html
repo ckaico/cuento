@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cuento · A nonlinear video editor that lives inside Claude Code</title>
+  <meta name="description" content="Cuento is an open-source nonlinear video editor (NLE) with an MCP server for Claude Code. Cut by hand, direct by comment, and every graphic renders as its own alpha layer, so the whole video never re-renders.">
+  <link rel="canonical" href="https://cuento.ai/">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b0a09">
+  <meta name="author" content="Christian Kai">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Cuento">
+  <meta property="og:url" content="https://cuento.ai/">
+  <meta property="og:title" content="Cuento · A nonlinear video editor that lives inside Claude Code">
+  <meta property="og:description" content="Cut by hand. Direct by comment. Never re-render the whole video. Open source, local-first, MCP server + skill.">
+  <meta property="og:image" content="https://cuento.ai/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The Cuento editor: a talking-head shot with a paper scroll graphic beside the head, a comment rail and a timeline.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Cuento · A nonlinear video editor that lives inside Claude Code">
+  <meta name="twitter:description" content="Cut by hand. Direct by comment. Never re-render the whole video. Open source, local-first.">
+  <meta name="twitter:image" content="https://cuento.ai/assets/og.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b0a09'/%3E%3Crect x='14' y='38' width='30' height='24' rx='5' fill='%23e8b04a'/%3E%3Crect x='50' y='38' width='36' height='24' rx='5' fill='%233a352c'/%3E%3Crect x='46' y='20' width='4' height='60' rx='2' fill='%23ff4d4d'/%3E%3C/svg%3E">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Cuento",
+        "url": "https://cuento.ai/",
+        "description": "An open-source nonlinear video editor with an MCP server for Claude Code. Cut by hand, direct by comment, and every graphic renders as its own alpha layer.",
+        "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "Video editor",
+        "operatingSystem": "macOS",
+        "softwareRequirements": "Python 3.11+, ffmpeg, a Chromium-based browser",
+        "license": "https://www.apache.org/licenses/LICENSE-2.0",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "codeRepository": "https://github.com/ckaico/cuento",
+        "image": "https://cuento.ai/assets/og.jpg",
+        "author": { "@type": "Person", "name": "Christian Kai", "url": "https://ship.ckai.co" }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "Is Cuento a Claude Artifact?",
+            "acceptedAnswer": { "@type": "Answer", "text": "It behaves like one. In the Claude desktop app the editor opens in the browser pane beside the chat and stays live while you and Claude both edit. It is served by a small local daemon, because multi-gigabyte camera files cannot live in a hosted page." } },
+          { "@type": "Question", "name": "Does my footage get uploaded?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The daemon binds to 127.0.0.1 and makes no network requests of its own. Footage, proxies and project files stay on your disk." } },
+          { "@type": "Question", "name": "Does Cuento replace Premiere Pro or DaVinci Resolve?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. It is for cutting and building graphics fast with Claude. Final color and finishing belong in Premiere or Resolve; export with every layer intact is the next milestone and is not built yet." } },
+          { "@type": "Question", "name": "What does Cuento need to run?",
+            "acceptedAnswer": { "@type": "Answer", "text": "macOS, Python 3.11 or newer, ffmpeg, and Google Chrome or another Chromium-based browser for layer renders. No Python packages and no Node." } },
+          { "@type": "Question", "name": "Does it work with MCP clients other than Claude Code?",
+            "acceptedAnswer": { "@type": "Answer", "text": "The server speaks standard MCP over stdio, so any MCP client can call its tools. The /cuento skill and the beside-the-chat editor are built for Claude Code." } }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="wordmark" href="#main" aria-label="Cuento, home">
+      <svg viewBox="0 0 100 100" width="22" height="22" aria-hidden="true"><rect x="8" y="34" width="34" height="32" rx="6" fill="#e8b04a"/><rect x="52" y="34" width="40" height="32" rx="6" fill="#3a352c"/><rect x="45" y="12" width="5" height="76" rx="2.5" fill="#ff4d4d"/></svg>
+      Cuento
+    </a>
+    <nav aria-label="Sections">
+      <a href="#loop">The loop</a>
+      <a href="#rule">The rule</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="pill ghost" href="https://github.com/ckaico/cuento" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero wrap" aria-labelledby="h1">
+    <p class="eyebrow">Open source · Apache-2.0 · MCP server + skill</p>
+    <h1 id="h1">A nonlinear video editor that lives inside <em>Claude Code.</em></h1>
+    <p class="sub">It opens beside the chat like a living artifact. Cut by hand, direct by comment, never re-render the whole video.</p>
+    <div class="cta">
+      <a class="pill solid" href="https://github.com/ckaico/cuento" rel="noopener">Get it on GitHub</a>
+      <a class="pill ghost" href="#install">Install in one minute</a>
+    </div>
+
+    <figure class="screen">
+      <div class="screen-bar" aria-hidden="true"><i></i><i></i><i></i><span class="mono">127.0.0.1 · /cuento open myfilm</span></div>
+      <video id="demo" poster="assets/poster.jpg" width="1280" height="780" autoplay muted loop playsinline preload="metadata"
+             aria-label="Screen recording of Cuento: the cut is skimmed at speed, a comment is typed on a range, and a paper scroll graphic appears beside the speaker's head.">
+        <source src="assets/demo.mp4" type="video/mp4">
+      </video>
+      <div class="strip" id="strip" aria-hidden="true"><i style="flex:17"></i><i style="flex:19"></i><i style="flex:7" class="hot"></i><i style="flex:12"></i><i style="flex:23"></i><i style="flex:22"></i><b id="strip-head"></b></div>
+      <figcaption>
+        <span class="keys" role="group" aria-label="Shuttle the recording">
+          <button type="button" data-key="j" aria-label="Back two seconds"><kbd>J</kbd></button>
+          <button type="button" data-key="k" aria-label="Stop"><kbd>K</kbd></button>
+          <button type="button" data-key="l" aria-label="Play, press again for faster"><kbd>L</kbd></button>
+        </span>
+        <span class="mono" id="rate">Try it: press L. Again for 2×, 4×, 8×.</span>
+        <span class="mono cap">A real session. The layer's render wait is shortened.</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="wrap" id="loop" aria-labelledby="loop-h">
+    <p class="mono">The loop</p>
+    <h2 id="loop-h">You cut. You comment. Claude builds that one piece.</h2>
+    <ol class="steps">
+      <li>
+        <span class="num mono">01</span>
+        <h3>Cut by hand</h3>
+        <p>Real footage on a timeline with the keys you already know: J/K/L to 8×, add edit, ripple trims, lift, drag an edge. Camera audio and your external mic follow every trim.</p>
+      </li>
+      <li>
+        <span class="num mono">02</span>
+        <h3>Comment on a range</h3>
+        <p>Press M and say what you want, right where you want it: “scroll pops up here”, “tighten this”, “warmer on the lav”. Each comment is a task pinned to exact frames.</p>
+      </li>
+      <li>
+        <span class="num mono">03</span>
+        <h3>One layer renders</h3>
+        <p>Claude turns the comment into one edit or one motion graphic. The graphic is code, rendered alone with an alpha channel and composited live over your picture.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="wrap" id="rule" aria-labelledby="rule-h">
+    <p class="mono">The rule</p>
+    <h2 id="rule-h">Change one, render one.</h2>
+    <p class="lede">Every graphic is its own element with its own alpha file, cached by a hash of its content. So most of what you do renders nothing at all.</p>
+    <div class="table" role="table" aria-label="What re-renders">
+      <div role="row" class="th"><span role="columnheader">You do this</span><span role="columnheader">This renders</span></div>
+      <div role="row"><span role="cell">Trim, split or move a clip</span><span role="cell" class="none">Nothing</span></div>
+      <div role="row"><span role="cell">Scrub, shuttle, skim at 8×</span><span role="cell" class="none">Nothing</span></div>
+      <div role="row"><span role="cell">Move or retime a graphic</span><span role="cell" class="none">Nothing</span></div>
+      <div role="row"><span role="cell">Undo back to an earlier version</span><span role="cell" class="none">Nothing. It is still cached</span></div>
+      <div role="row"><span role="cell">Change one graphic</span><span role="cell" class="one">That one graphic</span></div>
+      <div role="row"><span role="cell">Finish</span><span role="cell">The full video, once</span></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="today" aria-labelledby="today-h">
+    <p class="mono">Where it stands</p>
+    <h2 id="today-h">Honest about what is built.</h2>
+    <div class="cols">
+      <div>
+        <h3>Works today</h3>
+        <ul class="list">
+          <li>Timeline editing on 540p proxies with thumbnails and waveform</li>
+          <li>Linked dual audio: camera mic and external recorder, never summed</li>
+          <li>Comments as tasks on exact ranges, for picture or either audio track</li>
+          <li>Alpha layers from HTML, CSS and canvas: VP9-alpha preview, ProRes 4444 master</li>
+          <li>One undo history for your edits and Claude's</li>
+          <li>MCP server with 24 tools and a <code>/cuento</code> skill</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Not built yet</h3>
+        <ul class="list dim">
+          <li>Person matte, for text behind the head</li>
+          <li>Export to Premiere, Resolve and OpenTimelineIO with every layer intact</li>
+          <li>Voice comments</li>
+          <li>Brand kits</li>
+          <li>Frame rates other than 23.976</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="install" aria-labelledby="install-h">
+    <p class="mono">Install</p>
+    <h2 id="install-h">Local-first. One small daemon. Nothing uploaded.</h2>
+    <p class="lede">macOS, Python 3.11+, ffmpeg and Chrome. No Python packages, no Node, no account.</p>
+    <div class="code">
+      <button class="copy mono" type="button" data-copy="install-cmd">Copy</button>
+<pre id="install-cmd"><code>git clone https://github.com/ckaico/cuento.git ~/Projects/cuento
+cd ~/Projects/cuento
+claude mcp add cuento -s user -- "$PWD/bin/cuento" mcp
+ln -s "$PWD/skill" ~/.claude/skills/cuento</code></pre>
+    </div>
+    <p class="after">Then, in any Claude Code session: <code>/cuento open myfilm</code></p>
+  </section>
+
+  <section class="wrap" id="faq" aria-labelledby="faq-h">
+    <p class="mono">FAQ</p>
+    <h2 id="faq-h">Questions people ask first.</h2>
+    <div class="faq">
+      <details>
+        <summary>Is Cuento a Claude Artifact?</summary>
+        <p>It behaves like one. In the Claude desktop app the editor opens in the browser pane beside the chat and stays live while you and Claude both edit. It is served by a small local daemon, because multi-gigabyte camera files cannot live in a hosted page.</p>
+      </details>
+      <details>
+        <summary>Does my footage get uploaded?</summary>
+        <p>No. The daemon binds to 127.0.0.1 and makes no network requests of its own. Footage, proxies and project files stay on your disk.</p>
+      </details>
+      <details>
+        <summary>Does it replace Premiere Pro or DaVinci Resolve?</summary>
+        <p>No. It is for cutting and building graphics fast with Claude. Final color and finishing belong in Premiere or Resolve; export with every layer intact is the next milestone and is not built yet.</p>
+      </details>
+      <details>
+        <summary>What does it need to run?</summary>
+        <p>macOS, Python 3.11 or newer, ffmpeg, and Google Chrome or another Chromium-based browser for layer renders. No Python packages and no Node.</p>
+      </details>
+      <details>
+        <summary>Does it work with MCP clients other than Claude Code?</summary>
+        <p>The server speaks standard MCP over stdio, so any MCP client can call its tools. The <code>/cuento</code> skill and the beside-the-chat editor are built for Claude Code.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="wrap why" aria-labelledby="why-h">
+    <h2 id="why-h"><em>Films first, tools second.</em></h2>
+    <p class="lede">Cuento exists because a real edit needed it. It is built by a filmmaker, in the open, and it is free.</p>
+    <div class="cta">
+      <a class="pill solid" href="https://github.com/ckaico/cuento" rel="noopener">Star it on GitHub</a>
+      <a class="pill ghost" href="https://github.com/ckaico/cuento/issues" rel="noopener">Ask for a feature</a>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <span>© 2026 Christian Kai (CKAI) · Apache-2.0</span>
+  <span><a href="https://github.com/ckaico/cuento" rel="noopener">GitHub</a> · <a href="https://github.com/ckaico/cuento/blob/main/SECURITY.md" rel="noopener">Security</a> · <a href="https://ship.ckai.co" rel="noopener">One of the builds at ship.ckai.co</a></span>
+</footer>
+
+<script src="app.js" defer></script>
+</body>
+</html>

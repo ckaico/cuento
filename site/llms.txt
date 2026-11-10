@@ -1,0 +1,14 @@
+# Cuento
+
+> Cuento is an open-source nonlinear video editor (NLE) with an MCP server for Claude Code. You cut footage by hand on a timeline, leave comments on exact ranges, and Claude turns each comment into one edit or one motion-graphics layer rendered alone with an alpha channel, so the whole video is never re-rendered.
+
+- License: Apache-2.0. Author: Christian Kai (CKAI).
+- Runs locally on macOS: Python 3.11+, ffmpeg, a Chromium-based browser. No Python packages, no Node, no account, nothing uploaded.
+- Built today: timeline editing on proxies (J/K/L shuttle to 8x, add edit, ripple trims), linked camera + external audio, comments as tasks, alpha layers (VP9-alpha WebM preview, ProRes 4444 master), shared undo history, MCP server with 24 tools, /cuento skill.
+- Not built yet: person matte, export to Premiere / Resolve / OpenTimelineIO, voice comments, brand kits, frame rates other than 23.976.
+
+## Links
+
+- [Source and README](https://github.com/ckaico/cuento)
+- [Security notes](https://github.com/ckaico/cuento/blob/main/SECURITY.md)
+- [Install](https://cuento.ai/#install)
