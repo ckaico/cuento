@@ -1,0 +1,11 @@
+#!/bin/sh
+# Cuento launcher. Resolves its own location so it works through symlinks.
+self="$0"
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case "$link" in /*) self="$link" ;; *) self="$(dirname "$self")/$link" ;; esac
+done
+root=$(cd "$(dirname "$self")/.." && pwd -P)
+PY=${CUENTO_PYTHON:-python3}
+command -v "$PY" >/dev/null 2>&1 || PY=/opt/homebrew/bin/python3
+PATH="/opt/homebrew/bin:$PATH" PYTHONPATH="$root" PYTHONDONTWRITEBYTECODE=1 exec "$PY" -m cuento "$@"

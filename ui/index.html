@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuento</title>
+<link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">Cuento <span id="pname"></span></div>
+  <div id="tc" title="timeline timecode · frame">00:00:00</div>
+  <div id="rate">❚❚</div>
+  <div id="clipinfo"></div>
+  <div class="spacer"></div>
+  <button id="b-split" title="Add edit at playhead (⌘K)">Split</button>
+  <button id="b-undo" title="Undo (⌘Z)">Undo</button>
+  <button id="b-redo" title="Redo (⇧⌘Z)">Redo</button>
+  <button id="b-a1" title="Show or hide the camera audio track">A1</button>
+  <button id="b-layers" title="Preview layers from their rendered alpha files, or live from source">Layers: rendered</button>
+  <input id="vol" type="range" min="0" max="1" step="0.01" value="0.9" title="Preview volume">
+  <button id="b-keys" title="Keyboard shortcuts (?)">Keys</button>
+  <div id="status"></div>
+</header>
+
+<main>
+  <section id="viewer">
+    <div id="stage">
+      <div id="videos"></div>
+      <div id="layers"></div>
+      <div id="notice"></div>
+      <form id="cbox" hidden>
+        <div class="row"><span id="cbox-range"></span>
+          <select id="cbox-target"><option value="v1">Picture</option><option value="a2">A2 lav</option><option value="a1">A1 camera</option></select>
+        </div>
+        <textarea id="cbox-text" rows="2" placeholder="Comment for this range. Enter to save, Esc to cancel."></textarea>
+      </form>
+    </div>
+  </section>
+  <aside id="rail">
+    <nav>
+      <button data-tab="comments" class="on">Comments <span id="n-open"></span></button>
+      <button data-tab="transcript">Transcript</button>
+      <button data-tab="layerlist">Layers</button>
+    </nav>
+    <div id="comments" class="tab on"></div>
+    <div id="transcript" class="tab">
+      <input id="tsearch" type="search" placeholder="Search transcript">
+      <div id="tlist"></div>
+    </div>
+    <div id="layerlist" class="tab"></div>
+  </aside>
+</main>
+
+<footer id="timeline">
+  <div id="tl-scroll">
+    <div id="tl-inner">
+      <canvas id="ruler"></canvas>
+      <div id="lane-sections" class="lane"></div>
+      <div id="lane-layers" class="lane"><span class="lbl">FX</span></div>
+      <div id="lane-comments" class="lane"><span class="lbl">C</span></div>
+      <div id="lane-v1" class="lane"><span class="lbl">V1</span></div>
+      <div id="lane-a2" class="lane audio"><span class="lbl">A2 lav</span><canvas></canvas></div>
+      <div id="lane-a1" class="lane audio" hidden><span class="lbl">A1 cam</span><canvas></canvas></div>
+      <div id="marks" hidden></div>
+      <div id="playhead"></div>
+    </div>
+  </div>
+</footer>
+
+<div id="keys" hidden>
+  <div class="sheet">
+    <h2>Keys</h2>
+    <table>
+      <tr><td>J K L</td><td>reverse · stop · play. Tap again for 2× 4× 8×. Hold K + L/J slow, K + tap one frame</td></tr>
+      <tr><td>Space</td><td>play / pause</td></tr>
+      <tr><td>← → · ⇧← ⇧→</td><td>1 frame · 5 frames</td></tr>
+      <tr><td>↑ ↓ · Home End</td><td>previous / next edit · start / end</td></tr>
+      <tr><td>⌘K</td><td>add edit (split) at playhead</td></tr>
+      <tr><td>Q · W</td><td>ripple trim previous / next edit to playhead</td></tr>
+      <tr><td>I · O · X</td><td>mark in · mark out · mark clip (⇧⌘X or Esc clears)</td></tr>
+      <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>lift · ripple delete (marked range, else selected clip)</td></tr>
+      <tr><td>M · ⇧M · ⇧⌘M</td><td>comment at playhead · next comment · previous comment</td></tr>
+      <tr><td>⌘Z · ⇧⌘Z</td><td>undo · redo</td></tr>
+      <tr><td>= · - · \</td><td>zoom in · out · fit</td></tr>
+      <tr><td>Drag a clip edge</td><td>trim by hand (both audio tracks follow)</td></tr>
+      <tr><td>Double-click A1 / A2</td><td>hear camera audio or lav for that clip</td></tr>
+    </table>
+  </div>
+</div>
+<div id="toast" hidden></div>
+<script src="/ui/app.js"></script>
+</body>
+</html>
