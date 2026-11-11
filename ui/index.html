@@ -4,25 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cuento</title>
+<meta name="theme-color" content="#0d0e10">
+<link rel="manifest" href="/ui/manifest.webmanifest">
+<link rel="icon" href="/ui/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/ui/style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-razor" viewBox="0 0 20 20"><circle cx="6" cy="14.5" r="2.5"/><circle cx="14" cy="14.5" r="2.5"/><path d="M7.6 12.6 14.5 3M12.4 12.6 5.5 3"/></symbol>
+  <symbol id="i-split" viewBox="0 0 20 20"><path d="M10 2.5v15M6.5 7 4 10l2.5 3M13.5 7 16 10l-2.5 3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 20 20"><path d="M7.5 5 4 8.5 7.5 12"/><path d="M4 8.5h8a4 4 0 0 1 0 8H9"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 20 20"><path d="M12.5 5 16 8.5 12.5 12"/><path d="M16 8.5H8a4 4 0 0 0 0 8h3"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 20 20"><path d="m10 3 7 3.8-7 3.8-7-3.8z"/><path d="m3 10.2 7 3.8 7-3.8M3 13.6l7 3.8 7-3.8"/></symbol>
+  <symbol id="i-keys" viewBox="0 0 20 20"><rect x="2.5" y="5" width="15" height="10" rx="2"/><path d="M5.5 8h1M9.5 8h1M13.5 8h1M6.5 12h7"/></symbol>
+  <symbol id="i-side" viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="13" rx="2.5"/><path d="M12.5 3.5v13"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 20 20"><path d="M3.5 8v4h3l4 3.5v-11l-4 3.5z"/><path d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.5 5.5a6.5 6.5 0 0 1 0 9"/></symbol>
+  <symbol id="i-play" viewBox="0 0 20 20"><path class="f" d="M6.5 4.2v11.6L16 10z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 20 20"><path class="f" d="M5.5 4h3v12h-3zM11.5 4h3v12h-3z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 20 20"><path d="M12.5 5 7.5 10l5 5"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 20 20"><path d="m7.5 5 5 5-5 5"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 20 20"><path d="M5 4.5v11"/><path class="f" d="M15.5 4.5v11L7.5 10z"/></symbol>
+  <symbol id="i-next" viewBox="0 0 20 20"><path d="M15 4.5v11"/><path class="f" d="M4.5 4.5v11l8-5.5z"/></symbol>
+</svg>
 <header>
   <div class="brand">Cuento <span id="pname"></span></div>
-  <div id="tc" title="timeline timecode · frame">00:00:00</div>
-  <div id="rate">❚❚</div>
   <div id="versions" title="Versions of this cut. Tab switches, D shows what differs."></div>
   <div id="clipinfo"></div>
   <div class="spacer"></div>
-  <button id="b-split" title="Add edit at playhead (⌘K)">Split</button>
-  <button id="b-razor" title="Razor: click a clip to split it there (C). V or Esc to select.">Razor</button>
-  <button id="b-undo" title="Undo (⌘Z)">Undo</button>
-  <button id="b-redo" title="Redo (⇧⌘Z)">Redo</button>
-  <button id="b-a1" title="Show or hide the camera audio track">A1</button>
-  <button id="b-layers" title="Preview layers from their rendered alpha files, or live from source">Layers: rendered</button>
-  <input id="vol" type="range" min="0" max="1" step="0.01" value="0.9" title="Preview volume">
-  <button id="b-keys" title="Keyboard shortcuts (?)">Keys</button>
+  <div class="group">
+    <button id="b-razor" class="ib" title="Razor: click a clip to split it there (C). V or Esc to select."><svg class="i" aria-hidden="true"><use href="#i-razor"/></svg></button>
+    <button id="b-split" class="ib" title="Add edit at playhead (⌘K)"><svg class="i" aria-hidden="true"><use href="#i-split"/></svg></button>
+  </div>
+  <div class="group">
+    <button id="b-undo" class="ib" title="Undo (⌘Z)"><svg class="i" aria-hidden="true"><use href="#i-undo"/></svg></button>
+    <button id="b-redo" class="ib" title="Redo (⇧⌘Z)"><svg class="i" aria-hidden="true"><use href="#i-redo"/></svg></button>
+  </div>
+  <div class="group">
+    <button id="b-a1" class="tb" title="Show or hide the camera audio track">A1</button>
+    <button id="b-layers" class="ib" title="Layers: preview from rendered alpha files. Click for live from source."><svg class="i" aria-hidden="true"><use href="#i-layers"/></svg></button>
+  </div>
+  <label class="volume" title="Preview volume"><svg class="i" aria-hidden="true"><use href="#i-vol"/></svg><input id="vol" type="range" min="0" max="1" step="0.01" value="0.9"></label>
   <div id="status"></div>
+  <button id="b-keys" class="ib" title="Keyboard shortcuts (?)"><svg class="i" aria-hidden="true"><use href="#i-keys"/></svg></button>
+  <button id="b-side" class="ib on" title="Show or hide the inspector"><svg class="i" aria-hidden="true"><use href="#i-side"/></svg></button>
 </header>
 
 <main>
@@ -37,6 +61,15 @@
         </div>
         <textarea id="cbox-text" rows="2" placeholder="Comment for this range. Enter to save, Esc to cancel."></textarea>
       </form>
+    </div>
+    <div id="transport">
+      <button id="t-prev" class="ib" title="Previous edit (↑)"><svg class="i" aria-hidden="true"><use href="#i-prev"/></svg></button>
+      <button id="t-back" class="ib" title="Back one frame (←)"><svg class="i" aria-hidden="true"><use href="#i-back"/></svg></button>
+      <button id="t-play" class="ib play" title="Play / pause (Space)"><svg class="i" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <button id="t-fwd" class="ib" title="Forward one frame (→)"><svg class="i" aria-hidden="true"><use href="#i-fwd"/></svg></button>
+      <button id="t-next" class="ib" title="Next edit (↓)"><svg class="i" aria-hidden="true"><use href="#i-next"/></svg></button>
+      <div id="tc" title="timeline timecode">00:00:00</div>
+      <div id="rate"></div>
     </div>
   </section>
   <aside id="rail">

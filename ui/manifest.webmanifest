@@ -1,0 +1,10 @@
+{
+  "name": "Cuento",
+  "short_name": "Cuento",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d0e10",
+  "theme_color": "#0d0e10",
+  "icons": [{ "src": "/ui/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

@@ -258,7 +258,8 @@ function tick(now) {
 
 function setRate(r) {
   S.rate = r;
-  $('rate').textContent = r === 0 ? '❚❚' : `${r > 0 ? '▶' : '◀'} ${Math.abs(r)}×`;
+  $('rate').textContent = r === 0 || r === 1 ? '' : `${r > 0 ? '▶' : '◀'} ${Math.abs(r)}×`;
+  $('t-play').querySelector('use').setAttribute('href', r === 0 ? '#i-play' : '#i-pause');
   if (r === 0) {
     pauseAll(); S.playhead = Math.min(S.total, Math.round(S.playhead));
     show(S.playhead); updatePlayhead(); syncLayers(); saveUi(); return;
@@ -327,6 +328,7 @@ function syncLayers() {
 }
 
 function fitLayers() {
+  if (!$('stage')) return;   // the project list has no stage
   const k = $('stage').clientWidth / 1920;
   for (const v of views.values()) if (v.kind === 'live') v.node.style.transform = `scale(${k})`;
 }
@@ -472,6 +474,7 @@ function revealPlayhead() {
 // ---- canvases (ruler and waveforms cover only the visible window)
 
 function sizeCanvases() {
+  if (!$('timeline')) return;   // the project list has no timeline
   const dpr = devicePixelRatio || 1, w = scroller.clientWidth;
   for (const c of [$('ruler'), ...document.querySelectorAll('.lane.audio canvas')]) {
     const h = c.id === 'ruler' ? 22 : 40;
@@ -1003,10 +1006,31 @@ $('keys').onclick = () => { $('keys').hidden = true; };
 $('b-a1').onclick = () => { const l = $('lane-a1'); l.hidden = !l.hidden; $('b-a1').classList.toggle('on', !l.hidden); sizeCanvases(); };
 $('b-layers').onclick = () => {
   S.layerMode = S.layerMode === 'rendered' ? 'live' : 'rendered';
-  $('b-layers').textContent = `Layers: ${S.layerMode}`; syncLayers();
+  $('b-layers').classList.toggle('on', S.layerMode === 'live');
+  $('b-layers').title = S.layerMode === 'live' ? 'Layers: live from source. Click for rendered alpha files.' : 'Layers: preview from rendered alpha files. Click for live from source.';
+  syncLayers();
 };
 $('vol').oninput = () => { const v = +$('vol').value; if (cur.el) cur.el.volume = v; for (const a of Object.values(camAudio)) a.volume = v; };
-for (const b of document.querySelectorAll('header button')) b.addEventListener('mouseup', () => b.blur());
+for (const b of document.querySelectorAll('header button, #transport button')) b.addEventListener('mouseup', () => b.blur());
+
+// Transport under the viewer.
+$('t-play').onclick = () => setRate(S.rate === 0 ? 1 : 0);
+$('t-back').onclick = () => step(-1);
+$('t-fwd').onclick = () => step(1);
+$('t-prev').onclick = () => { setRate(0); jumpEdit(-1); };
+$('t-next').onclick = () => { setRate(0); jumpEdit(1); };
+
+// Inspector on the right can be hidden; the choice is remembered per browser.
+function setInspector(on) {
+  document.body.classList.toggle('noinsp', !on); $('b-side').classList.toggle('on', on);
+  try { localStorage.setItem('cuento.inspector', on ? '1' : '0'); } catch (e) { /* storage blocked */ }
+  requestAnimationFrame(sizeCanvases);
+}
+$('b-side').onclick = () => setInspector(document.body.classList.contains('noinsp'));
+try { if (localStorage.getItem('cuento.inspector') === '0') setInspector(false); } catch (e) { /* storage blocked */ }
+
+// No browser context menu over the editor surfaces.
+for (const id of ['viewer', 'timeline']) $(id).addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ------------------------------------------------------------------ boot
 
@@ -1016,7 +1040,7 @@ async function boot() {
     const box = el('div', 'projects'); box.appendChild(el('h2', null, 'Cuento projects'));
     for (const name of Object.keys(r.projects)) { const a = el('a', null, name); a.href = `/?project=${encodeURIComponent(name)}`; box.appendChild(a); }
     if (!Object.keys(r.projects).length) box.appendChild(el('div', 'empty', 'No projects yet. Create one with: cuento import-edl'));
-    document.querySelector('main').replaceWith(box); $('timeline').remove();
+    document.querySelector('main').replaceWith(box); $('timeline').remove(); document.body.classList.add('list');
     return;
   }
   try { await refresh(true); } catch (e) { toast(e.message, true); return; }
