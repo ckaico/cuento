@@ -231,6 +231,65 @@ def op_ripple_trim_to(doc, frame, side):
     return {"id": None, "playhead": frame}
 
 
+def _move_end(doc, it, delta):
+    """Move an item's end on the timeline by delta frames; its start stays."""
+    if it["type"] == "gap":
+        if it["dur"] + delta < 0:
+            raise OpError("gap too short")
+        it["dur"] += delta
+    else:
+        op_clip_trim(doc, it["id"], out=it["out"] + delta)
+
+
+def _move_start(doc, it, delta):
+    """Move an item's start on the timeline by delta frames; its end stays."""
+    if it["type"] == "gap":
+        if it["dur"] - delta < 0:
+            raise OpError("gap too short")
+        it["dur"] -= delta
+    else:
+        op_clip_trim(doc, it["id"], **{"in": it["in"] + delta})
+
+
+def _neighbor(doc, id, step):
+    i, it = find(doc, id)
+    j = i + step
+    if not 0 <= j < len(doc["seq"]):
+        raise OpError("no clip on that side")
+    return it, doc["seq"][j]
+
+
+def op_clip_roll(doc, id, delta):
+    """Roll the edit after this clip: it gets longer by delta, the next item shorter. Length unchanged."""
+    delta = int(delta)
+    it, nxt = _neighbor(doc, id, 1)
+    _move_end(doc, it, delta)
+    _move_start(doc, nxt, delta)
+    return {"id": id, "delta": delta}
+
+
+def op_clip_slip(doc, id, delta):
+    """Slip: show a later (or earlier) part of the source in the same slot on the timeline."""
+    delta = int(delta)
+    _, it = find(doc, id)
+    if it["type"] != "block":
+        raise OpError("not a clip")
+    _check_range(doc, it["source"], it["in"] + delta, it["out"] + delta)
+    it["in"] += delta
+    it["out"] += delta
+    return {"id": id, "delta": delta}
+
+
+def op_clip_slide(doc, id, delta):
+    """Slide: move the clip along the timeline; the items either side give and take. Length unchanged."""
+    delta = int(delta)
+    _, prev = _neighbor(doc, id, -1)
+    _, nxt = _neighbor(doc, id, 1)
+    _move_end(doc, prev, delta)
+    _move_start(doc, nxt, delta)
+    return {"id": id, "delta": delta}
+
+
 def op_clip_insert(doc, source, index=None, after=None, text="", section="", **kw):
     fin, fout = int(kw["in"]), int(kw["out"])
     _check_range(doc, source, fin, fout)

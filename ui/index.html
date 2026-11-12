@@ -12,6 +12,8 @@
 <body>
 <svg width="0" height="0" style="position:absolute">
   <symbol id="i-razor" viewBox="0 0 20 20"><circle cx="6" cy="14.5" r="2.5"/><circle cx="14" cy="14.5" r="2.5"/><path d="M7.6 12.6 14.5 3M12.4 12.6 5.5 3"/></symbol>
+  <symbol id="i-trim" viewBox="0 0 20 20"><path d="M8 3v14M12 3v14M5 7.5 2.5 10 5 12.5M15 7.5l2.5 2.5-2.5 2.5"/></symbol>
+  <symbol id="i-snap" viewBox="0 0 20 20"><path d="M5 3.5v6a5 5 0 0 0 10 0v-6"/><path d="M5 6.5h3M12 6.5h3"/></symbol>
   <symbol id="i-split" viewBox="0 0 20 20"><path d="M10 2.5v15M6.5 7 4 10l2.5 3M13.5 7 16 10l-2.5 3"/></symbol>
   <symbol id="i-undo" viewBox="0 0 20 20"><path d="M7.5 5 4 8.5 7.5 12"/><path d="M4 8.5h8a4 4 0 0 1 0 8H9"/></symbol>
   <symbol id="i-redo" viewBox="0 0 20 20"><path d="M12.5 5 16 8.5 12.5 12"/><path d="M16 8.5H8a4 4 0 0 0 0 8h3"/></symbol>
@@ -33,7 +35,9 @@
   <div class="spacer"></div>
   <div class="group">
     <button id="b-razor" class="ib" title="Razor: click a clip to split it there (C). V or Esc to select."><svg class="i" aria-hidden="true"><use href="#i-razor"/></svg></button>
+    <button id="b-trim" class="ib" title="Trim: drag an edge to roll, a clip to slip, ⇧-drag to slide (T)"><svg class="i" aria-hidden="true"><use href="#i-trim"/></svg></button>
     <button id="b-split" class="ib" title="Add edit at playhead (⌘K)"><svg class="i" aria-hidden="true"><use href="#i-split"/></svg></button>
+    <button id="b-snap" class="ib on" title="Snapping to edits, playhead, marks and comments (N)"><svg class="i" aria-hidden="true"><use href="#i-snap"/></svg></button>
   </div>
   <div class="group">
     <button id="b-undo" class="ib" title="Undo (⌘Z)"><svg class="i" aria-hidden="true"><use href="#i-undo"/></svg></button>
@@ -121,9 +125,12 @@
       <tr><td>↑ ↓ · Home End</td><td>previous / next edit · start / end</td></tr>
       <tr><td>⌘K</td><td>add edit (split) at playhead</td></tr>
       <tr><td>C · V</td><td>razor: click a clip to split it there · back to select (Esc too)</td></tr>
+      <tr><td>T</td><td>trim tool: drag an edge to roll, a clip to slip, ⇧-drag a clip to slide (length never changes)</td></tr>
+      <tr><td>N</td><td>snapping on / off (edits, playhead, marks, comments)</td></tr>
+      <tr><td>⌘-click · ⇧-click · ⌘A</td><td>add a clip to the selection · select a run of clips · select all</td></tr>
       <tr><td>Q · W</td><td>ripple trim previous / next edit to playhead</td></tr>
       <tr><td>I · O · X</td><td>mark in · mark out · mark clip (⇧⌘X or Esc clears)</td></tr>
-      <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>ripple delete (closes the gap) · lift (leaves a gap); marked range, else selected clip</td></tr>
+      <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>ripple delete (closes the gap) · lift (leaves a gap); selected clips, else marked range</td></tr>
       <tr><td>M · ⇧M · ⇧⌘M</td><td>comment at playhead · next comment · previous comment</td></tr>
       <tr><td>⌘Z · ⇧⌘Z</td><td>undo · redo</td></tr>
       <tr><td>Tab · D</td><td>switch version at the same moment · show what only this version has</td></tr>

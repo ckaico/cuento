@@ -53,6 +53,30 @@ class Ops(unittest.TestCase):
         run(d, "range_delete", start=50, end=160, ripple=True)
         self.assertEqual(P.layout(d)[1], 240)
 
+    def test_roll_slip_slide_keep_length(self):
+        d = doc()
+        run(d, "clip_roll", id="b0", delta=10)
+        self.assertEqual(starts(d), [("b0", 0, 110), ("b1", 110, 40), ("b2", 150, 200)])
+        self.assertEqual((d["seq"][0]["out"], d["seq"][1]["in"]), (210, 310))
+        run(d, "clip_slip", id="b1", delta=-20)
+        self.assertEqual((d["seq"][1]["in"], d["seq"][1]["out"]), (290, 330))
+        self.assertEqual(P.layout(d)[1], 350)
+        run(d, "clip_slide", id="b1", delta=-30)
+        self.assertEqual(starts(d), [("b0", 0, 80), ("b1", 80, 40), ("b2", 120, 230)])
+        self.assertEqual((d["seq"][1]["in"], d["seq"][2]["in"]), (290, 470))
+        with self.assertRaises(P.OpError):
+            run(d, "clip_slip", id="b1", delta=-1000)
+        with self.assertRaises(P.OpError):
+            run(d, "clip_roll", id="b2", delta=5)
+        with self.assertRaises(P.OpError):
+            run(d, "clip_slide", id="b0", delta=5)
+
+    def test_roll_keeps_comment_in_place(self):
+        d = doc()
+        run(d, "comment_add", start=160, dur=5, text="x")
+        run(d, "clip_roll", id="b0", delta=-20)
+        self.assertEqual(d["comments"][0]["start"], 160)
+
     def test_comment_rides_its_clip(self):
         d = doc()
         run(d, "comment_add", start=160, dur=20, text="here")

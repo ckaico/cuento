@@ -13,6 +13,7 @@ const S = {
   playhead: 0, rate: 0, sel: null, marks: { in: null, out: null },
   ppf: 1, fit: true, layerMode: 'rendered', curComment: null, curLayer: null, kHeld: false,
   diff: false, only: new Map(), chat: null,
+  tool: 'select', multi: new Set(), snap: true,
 };
 
 const tc = (f) => { f = Math.max(0, Math.floor(f)); const s = Math.floor(f / 24); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}:${String(f % 24).padStart(2, '0')}`; };
@@ -363,7 +364,7 @@ function renderTimeline() {
     const n = el('div', it.type === 'gap' ? 'gap' : 'block');
     n.style.left = `${x(it.start)}px`; n.style.width = `${Math.max(2, x(it.dur) - 1)}px`;
     n.dataset.id = it.id;
-    if (it.id === S.sel) n.classList.add('sel');
+    if (it.id === S.sel || S.multi.has(it.id)) n.classList.add('sel');
     if (S.diff && S.only.has(it.id)) n.classList.add(S.only.get(it.id));
     if (it.type === 'block') {
       n.title = `${it.section || ''}\n${it.text || ''}\n${it.source} ${it.in}–${it.out} · ${tc(it.dur)} · audio: ${it.audio || 'lav'}`;
@@ -552,8 +553,9 @@ function drag(move, up) {
 inner.addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;
   const t = e.target;
-  if (t.classList.contains('h')) return startTrim(e, t);
+  if (t.classList.contains('h')) return S.tool === 'trim' ? startRoll(e, t) : startTrim(e, t);
   if (t.classList.contains('lbar')) return startLayerMove(e, t);
+  if (S.tool === 'trim' && t.closest('.block')) return e.shiftKey ? startSlide(e, t.closest('.block')) : startSlip(e, t.closest('.block'));
   if (t.classList.contains('cm')) { focusComment(t.dataset.id, true); return; }
   if (S.tool === 'razor' && t.closest('.block')) {
     e.preventDefault();
@@ -563,23 +565,32 @@ inner.addEventListener('mousedown', (e) => {
     return;
   }
   const blockNode = t.closest('.block,.gap');
-  if (blockNode && !e.shiftKey) {
-    S.sel = blockNode.dataset.id;
+  if (blockNode) {
+    const id = blockNode.dataset.id;
     if (markRange()) clearMarks();   // clicking a clip drops stale I/O marks
-    document.querySelectorAll('.block.sel,.gap.sel').forEach((n) => n.classList.remove('sel'));
-    blockNode.classList.add('sel');
+    if (e.metaKey || e.ctrlKey) {     // ⌘-click adds or removes one clip
+      if (!S.multi.size && S.sel) S.multi.add(S.sel);
+      if (S.multi.has(id)) S.multi.delete(id); else S.multi.add(id);
+      S.sel = S.multi.has(id) ? id : [...S.multi].pop() || null;
+      return markSel();
+    }
+    if (e.shiftKey && S.sel) {        // ⇧-click selects every item between
+      const a = S.items.findIndex((i) => i.id === S.sel), b = S.items.findIndex((i) => i.id === id);
+      S.multi = new Set(S.items.slice(Math.min(a, b), Math.max(a, b) + 1).map((i) => i.id));
+      return markSel();
+    }
+    S.sel = id; S.multi.clear(); markSel();
     return startClipMove(e, blockNode);
   }
-  setRate(0); seek(frameAtX(e.clientX));
-  drag((ev) => seek(frameAtX(ev.clientX)));
+  setRate(0); seek(snap(frameAtX(e.clientX)));
+  drag((ev) => seek(snap(frameAtX(ev.clientX))), () => snapLine.remove());
 });
 
 // Razor (C): click a clip to split it at that frame; V goes back to select.
 const razorLine = el('div'); razorLine.id = 'razorline';
 function setTool(tool) {
   S.tool = tool;
-  document.body.classList.toggle('razor', tool === 'razor');
-  $('b-razor').classList.toggle('on', tool === 'razor');
+  for (const t of ['razor', 'trim']) { document.body.classList.toggle(t, tool === t); $(`b-${t}`).classList.toggle('on', tool === t); }
   if (tool !== 'razor') razorLine.remove();
 }
 inner.addEventListener('mousemove', (e) => {
@@ -627,6 +638,89 @@ function startClipMove(e, node) {
   });
 }
 
+function markSel() {
+  document.querySelectorAll('.block,.gap').forEach((n) => n.classList.toggle('sel', n.dataset.id === S.sel || S.multi.has(n.dataset.id)));
+}
+const selectedIds = () => (S.multi.size ? [...S.multi] : S.sel ? [S.sel] : []);
+
+// Snapping (N): edits, playhead, marks and comment starts pull within 8 px.
+const snapLine = el('div'); snapLine.id = 'snapline';
+function snap(f, skip = []) {
+  snapLine.remove();
+  if (!S.snap) return f;
+  const pts = [...edits(), Math.round(S.playhead), S.marks.in, S.marks.out, ...S.doc.comments.map((c) => c.start)];
+  let best = f, bd = 8 / S.ppf;
+  for (const p of pts) if (p != null && !skip.includes(p) && Math.abs(p - f) < bd) { best = p; bd = Math.abs(p - f); }
+  if (best !== f || pts.includes(f)) { snapLine.style.left = `${x(best)}px`; inner.appendChild(snapLine); }
+  return best;
+}
+function toggleSnap() {
+  S.snap = !S.snap; $('b-snap').classList.toggle('on', S.snap); toast(S.snap ? 'Snapping on' : 'Snapping off');
+  try { localStorage.setItem('cuento.snap', S.snap ? '1' : '0'); } catch (e) { /* storage blocked */ }
+}
+const srcFrames = (it) => (it.type === 'block' && (S.doc.sources[it.source] || {}).frames) || Infinity;
+const nodeOf = (it) => inner.querySelector(`[data-id="${it.id}"]`);
+function place(it, start, dur) { const n = nodeOf(it); if (n) { n.style.left = `${x(start)}px`; n.style.width = `${Math.max(2, x(dur) - 1)}px`; } }
+function trimTip(ev, text) { tip.hidden = false; tip.textContent = text; tip.style.left = `${ev.clientX + 12}px`; tip.style.top = `${ev.clientY - 28}px`; }
+const sgn = (d) => `${d >= 0 ? '+' : ''}${d}f`;
+
+// Trim tool (T). Edge: roll the edit. Body: slip the source. ⇧ + body: slide the clip. Length never changes.
+function startRoll(e, handle) {
+  e.preventDefault(); setRate(0);
+  const node = handle.parentNode, i = S.items.findIndex((q) => q.id === node.dataset.id);
+  const [A, B] = handle.classList.contains('l') ? [S.items[i - 1], S.items[i]] : [S.items[i], S.items[i + 1]];
+  if (!A || !B) { toast('Roll needs a clip on both sides of the edit'); return; }
+  const edit = A.start + A.dur, x0 = e.clientX;
+  const lo = Math.max(1 - A.dur, B.type === 'block' ? -B.in : -Infinity);
+  const hi = Math.min(B.dur - 1, A.type === 'block' ? srcFrames(A) - A.out : Infinity);
+  let d = 0;
+  drag((ev) => {
+    d = Math.max(lo, Math.min(hi, snap(edit + Math.round((ev.clientX - x0) / S.ppf), [edit]) - edit));
+    place(A, A.start, A.dur + d); place(B, B.start + d, B.dur - d);
+    if (A.type === 'block') showSource(A.source, A.out + d - 1);
+    trimTip(ev, `roll ${sgn(d)}`);
+  }, async () => {
+    snapLine.remove();
+    if (d) await op('clip_roll', { id: A.id, delta: d }); else renderTimeline();
+    show(S.playhead);
+  });
+}
+
+function startSlip(e, node) {
+  e.preventDefault(); setRate(0);
+  const it = S.items.find((q) => q.id === node.dataset.id), x0 = e.clientX;
+  S.sel = it.id; S.multi.clear(); markSel();
+  let d = 0;
+  drag((ev) => {
+    d = Math.max(-it.in, Math.min(srcFrames(it) - it.out, Math.round((x0 - ev.clientX) / S.ppf)));
+    showSource(it.source, it.in + d);
+    trimTip(ev, `slip ${sgn(d)} · ${tc(it.in + d)}–${tc(it.out + d)}`);
+  }, async () => {
+    if (d) await op('clip_slip', { id: it.id, delta: d });
+    show(S.playhead);
+  });
+}
+
+function startSlide(e, node) {
+  e.preventDefault(); setRate(0);
+  const i = S.items.findIndex((q) => q.id === node.dataset.id), it = S.items[i], P = S.items[i - 1], N = S.items[i + 1];
+  if (!P || !N) { toast('Slide needs an item on both sides'); return; }
+  S.sel = it.id; S.multi.clear(); markSel();
+  const x0 = e.clientX;
+  const lo = Math.max(1 - P.dur, N.type === 'block' ? -N.in : -Infinity);
+  const hi = Math.min(N.dur - 1, P.type === 'block' ? srcFrames(P) - P.out : Infinity);
+  let d = 0;
+  drag((ev) => {
+    d = Math.max(lo, Math.min(hi, snap(it.start + Math.round((ev.clientX - x0) / S.ppf), [it.start]) - it.start));
+    place(P, P.start, P.dur + d); place(it, it.start + d, it.dur); place(N, N.start + d, N.dur - d);
+    trimTip(ev, `slide ${sgn(d)}`);
+  }, async () => {
+    snapLine.remove();
+    if (d) await op('clip_slide', { id: it.id, delta: d }); else renderTimeline();
+    show(S.playhead);
+  });
+}
+
 function startTrim(e, handle) {
   e.preventDefault(); setRate(0);
   const node = handle.parentNode, it = S.items.find((i) => i.id === node.dataset.id);
@@ -634,7 +728,9 @@ function startTrim(e, handle) {
   let nin = it.in, nout = it.out;
   S.sel = it.id; node.classList.add('trimming');
   drag((ev) => {
-    const d = Math.round((ev.clientX - x0) / S.ppf);
+    let d = Math.round((ev.clientX - x0) / S.ppf);
+    const edge = left ? it.start : it.start + it.dur;   // where the dragged edge sits now
+    d = snap(edge + d, [edge]) - edge;
     if (left) nin = Math.max(0, Math.min(it.out - 1, it.in + d)); else nout = Math.max(it.in + 1, Math.min(max, it.out + d));
     // show the frame the edit will land on while dragging
     showSource(it.source, left ? nin : nout - 1);
@@ -643,7 +739,7 @@ function startTrim(e, handle) {
     tip.hidden = false; tip.textContent = `${delta >= 0 ? '+' : ''}${delta}f · ${tc(nout - nin)}`;
     tip.style.left = `${ev.clientX + 12}px`; tip.style.top = `${ev.clientY - 28}px`;
   }, async () => {
-    node.classList.remove('trimming');
+    snapLine.remove(); node.classList.remove('trimming');
     if (nin !== it.in || nout !== it.out) await op('clip_trim', left ? { id: it.id, in: nin } : { id: it.id, out: nout });
     else renderTimeline();
     show(S.playhead);
@@ -656,9 +752,9 @@ function startLayerMove(e, node) {
   let start = l.start;
   S.curLayer = l.id; showTab('layerlist'); renderLayerList();
   drag((ev) => {
-    start = Math.max(0, l.start + Math.round((ev.clientX - x0) / S.ppf));
+    start = Math.max(0, snap(l.start + Math.round((ev.clientX - x0) / S.ppf), [l.start]));
     node.style.left = `${x(start)}px`;
-  }, () => { if (start !== l.start) op('layer_update', { id: l.id, start }); else renderLayerBars(); });
+  }, () => { snapLine.remove(); if (start !== l.start) op('layer_update', { id: l.id, start }); else renderLayerBars(); });
 }
 
 // ------------------------------------------------------------------ versions
@@ -909,7 +1005,14 @@ $('cbox').addEventListener('submit', (e) => e.preventDefault());
 
 // A selected clip wins over I/O marks: the highlighted thing is what gets deleted.
 async function removeSelection(ripple) {
-  const it = S.sel && S.items.find((i) => i.id === S.sel), r = markRange();
+  const ids = selectedIds(), r = markRange();
+  if (ids.length > 1) {
+    setRate(0);
+    const first = Math.min(...ids.map((id) => (S.items.find((i) => i.id === id) || {}).start ?? S.total));
+    if (await op('clip_delete', { ids, ripple })) { S.sel = null; S.multi.clear(); clearMarks(); if (ripple) seek(Math.min(first, S.total)); }
+    return;
+  }
+  const it = S.sel && S.items.find((i) => i.id === S.sel);
   if (it) {
     setRate(0);
     if (await op('clip_delete', { ids: [it.id], ripple })) { S.sel = null; clearMarks(); if (ripple) seek(Math.min(it.start, S.total)); }
@@ -984,7 +1087,10 @@ addEventListener('keydown', (e) => {
   else if (k === '\\') { S.fit = true; renderTimeline(); scroller.scrollLeft = 0; }
   else if (!cmd && k === 'c') setTool(S.tool === 'razor' ? 'select' : 'razor');
   else if (!cmd && k === 'v') setTool('select');
-  else if (k === 'Escape') { setTool('select'); S.marks = { in: null, out: null }; S.sel = null; renderMarks(); renderTimeline(); saveUi(); }
+  else if (!cmd && k === 't') setTool(S.tool === 'trim' ? 'select' : 'trim');
+  else if (!cmd && k === 'n') toggleSnap();
+  else if (cmd && k === 'a') { S.multi = new Set(S.items.map((i) => i.id)); S.sel = S.items.length ? S.items[0].id : null; markSel(); }
+  else if (k === 'Escape') { setTool('select'); S.marks = { in: null, out: null }; S.sel = null; S.multi.clear(); renderMarks(); renderTimeline(); saveUi(); }
   else if (k === '?') $('keys').hidden = false;
   else hit = false;
   if (hit) e.preventDefault();
@@ -999,6 +1105,9 @@ addEventListener('blur', () => { S.kHeld = false; });
 
 $('b-split').onclick = () => splitAtPlayhead();
 $('b-razor').onclick = () => setTool(S.tool === 'razor' ? 'select' : 'razor');
+$('b-trim').onclick = () => setTool(S.tool === 'trim' ? 'select' : 'trim');
+$('b-snap').onclick = () => toggleSnap();
+try { if (localStorage.getItem('cuento.snap') === '0') { S.snap = false; $('b-snap').classList.remove('on'); } } catch (e) { /* storage blocked */ }
 $('b-undo').onclick = () => history('undo');
 $('b-redo').onclick = () => history('redo');
 $('b-keys').onclick = () => { $('keys').hidden = false; };

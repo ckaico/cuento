@@ -38,7 +38,7 @@ scrub, undo: render none.
 
 ## What works today
 
-- **Timeline editing** on 540p proxies: J/K/L shuttle to 8×, frame stepping, add edit, ripple trims, lift and ripple delete, in/out marks, drag-to-trim, thumbnails and waveform.
+- **Timeline editing** on 540p proxies: J/K/L shuttle to 8×, frame stepping, add edit, razor, ripple, roll, slip and slide trims, snapping, multi-select, lift and ripple delete, in/out marks, drag-to-trim and drag-to-move, thumbnails and waveform.
 - **Linked dual audio**: camera mic (A1) and external recorder (A2) follow every trim, split and move. The preview plays one or the other per clip, never a sum.
 - **Comments as tasks** on exact ranges, for picture or either audio track. Editing a resolved comment reopens it.
 - **Alpha layers**: HTML/CSS/canvas elements rendered frame by frame through headless Chrome to VP9-alpha WebM (preview) or ProRes 4444 (master), composited live in the browser.
@@ -103,6 +103,9 @@ references and house rules; Claude reads it when the project opens.
 | ↑/↓, Home/End | previous/next edit, start/end |
 | ⌘K | add edit at the playhead |
 | C / V | razor (click a clip to split it there) / select |
+| T | trim tool: drag an edge to roll, a clip to slip, ⇧-drag to slide |
+| N | snapping on / off |
+| ⌘-click, ⇧-click, ⌘A | add to selection, select a run, select all |
 | Q / W | ripple-trim previous / next edit to the playhead |
 | I / O / X | mark in, out, clip (Esc clears) |
 | Delete · ⇧Delete or ⌥Delete | ripple delete (closes the gap) · lift (leaves a gap) |

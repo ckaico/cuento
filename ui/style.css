@@ -159,6 +159,10 @@ select { background: var(--panel2); border: 0; box-shadow: var(--hi); border-rad
 body.razor .block, body.razor .block .h { cursor: crosshair; }
 #razorline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--play); z-index: 9; pointer-events: none; box-shadow: 0 0 6px rgba(255, 69, 58, .7); }
 #b-razor.on { color: var(--play); background: rgba(255, 69, 58, .16); }
+#snapline { position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -.5px; background: #ffd60a; z-index: 9; pointer-events: none; box-shadow: 0 0 6px rgba(255, 214, 10, .8); }
+#b-trim.on { color: #ffd60a; background: rgba(255, 214, 10, .14); }
+body.trim .block { cursor: ew-resize; }
+body.trim .block .h { cursor: col-resize; }
 #dropmark { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--sel); z-index: 9; pointer-events: none; box-shadow: 0 0 8px rgba(10, 132, 255, .8); }
 .block .thumb { position: absolute; left: 0; top: 0; bottom: 0; width: 92px; background: #111 center / cover no-repeat; }
 .block .txt { position: absolute; left: 98px; right: 8px; top: 4px; font-size: 10px; line-height: 1.3; color: #dfe6f3; max-height: 46px; overflow: hidden; }
