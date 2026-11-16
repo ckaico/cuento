@@ -116,6 +116,61 @@ const peaks = {};     // `${sid}.${track}` -> Uint8Array, 100 values per second
 let cur = { el: null, item: null };
 let pre = { el: null, id: null };
 
+// Audio: each media element -> its own gain (clip gain and the short fades at cuts) -> mix -> volume -> out.
+// The meter reads the mix, before the volume slider.
+let actx = null, mix = null, master = null, meter = null;
+const gains = new Map();
+const FADE = 0.006;   // seconds faded at each cut, so cuts don't click
+const dbLin = (db) => Math.pow(10, (db || 0) / 20);
+const fmtDb = (g) => `${g > 0 ? '+' : ''}${(+g || 0).toFixed(1)} dB`;
+function audioGraph() {
+  if (actx) return actx;
+  try {
+    actx = new AudioContext();
+    mix = actx.createGain(); master = actx.createGain(); meter = actx.createAnalyser();
+    meter.fftSize = 1024; master.gain.value = +$('vol').value;
+    mix.connect(meter); mix.connect(master); master.connect(actx.destination);
+  } catch (e) { actx = null; }
+  return actx;
+}
+const elVol = () => (actx ? 1 : +$('vol').value);
+function gainOf(m) {
+  if (!audioGraph()) return null;
+  let g = gains.get(m);
+  if (!g) { g = actx.createGain(); actx.createMediaElementSource(m).connect(g); g.connect(mix); gains.set(m, g); m.volume = 1; }
+  return g;
+}
+// Ramp to this clip's gain, and fade out just before the media stops (the next cut or a gap).
+function rampClip(m, it, fromZero) {
+  const g = m && gainOf(m);
+  if (!g || S.rate <= 0) return;
+  if (actx.state === 'suspended') actx.resume();
+  const p = g.gain, now = actx.currentTime, lvl = dbLin(it.gain);
+  p.cancelScheduledValues(now); p.setValueAtTime(fromZero ? 0 : p.value, now);
+  p.linearRampToValueAtTime(lvl, now + FADE);
+  let end = it, n = S.items[it.index + 1];
+  while (continues(end, n)) { end = n; n = S.items[end.index + 1]; }
+  const rem = (end.start + end.dur - S.playhead) / FPS / S.rate;
+  if (rem > 3 * FADE) { p.setValueAtTime(lvl, now + rem - FADE); p.linearRampToValueAtTime(0, now + rem); }
+}
+
+const meterBuf = new Float32Array(1024);
+let meterPeak = -Infinity, meterHold = -Infinity, meterHoldT = 0;
+function drawMeter() {
+  let pk = 0;
+  if (meter && S.rate !== 0) { meter.getFloatTimeDomainData(meterBuf); for (const v of meterBuf) { const a = Math.abs(v); if (a > pk) pk = a; } }
+  const db = pk > 0 ? 20 * Math.log10(pk) : -Infinity, t = performance.now();
+  meterPeak = Math.max(db, meterPeak - 1.5);
+  if (db >= meterHold || t - meterHoldT > 1500) { meterHold = db; meterHoldT = t; }
+  const pos = (d) => Math.max(0, Math.min(1, (d + 60) / 60));
+  $('meter-fill').style.clipPath = `inset(0 ${(1 - pos(meterPeak)) * 100}% 0 0)`;
+  $('meter-hold').style.left = `${pos(meterHold) * 100}%`;
+  $('meter-hold').hidden = !isFinite(meterHold);
+  $('meter').classList.toggle('over', meterHold > -1);
+  $('meter').title = isFinite(meterHold) ? `Peak ${meterHold.toFixed(1)} dBFS` : 'Audio level';
+}
+function meterDecay() { drawMeter(); if (S.rate === 0 && isFinite(meterPeak) && meterPeak > -60) requestAnimationFrame(meterDecay); }
+
 function setupMedia() {
   let waiting = [];
   for (const [sid, m] of Object.entries(S.media)) {
@@ -195,12 +250,14 @@ function audible(it) { return S.rate >= 0.5 && S.rate <= 2; }
 function startClip(v, it, t) {
   if (t != null && Math.abs(v.currentTime - t) > 0.02) v.currentTime = t;
   const cam = it.audio === 'cam' && camAudio[it.source];
-  v.playbackRate = S.rate; v.volume = +$('vol').value; v.muted = !audible(it) || !!cam;
+  v.playbackRate = S.rate; v.volume = elVol(); v.muted = !audible(it) || !!cam;
+  rampClip(v, it, true);
   v.play().catch(() => {});
   for (const a of Object.values(camAudio)) a.pause();
   if (cam && audible(it)) {
     // camera mic replaces the lav for this clip; the two are never summed
-    cam.currentTime = t != null ? t : v.currentTime; cam.playbackRate = S.rate; cam.volume = +$('vol').value;
+    cam.currentTime = t != null ? t : v.currentTime; cam.playbackRate = S.rate; cam.volume = elVol();
+    rampClip(cam, it, true);
     cam.play().catch(() => {});
   }
   activate(v); cur = { el: v, item: it }; cueNext(it);
@@ -231,7 +288,11 @@ function advance(it) {
   const next = S.items[it.index + 1];
   if (!next) { S.playhead = S.total; setRate(0); return; }
   S.playhead = next.start;
-  if (cur.el && continues(it, next)) { cur.item = next; return; }   // same media runs on through a split
+  if (cur.el && continues(it, next)) {   // same media runs on through a split
+    cur.item = next;
+    if ((next.gain || 0) !== (it.gain || 0)) { rampClip(cur.el, next); if (next.audio === 'cam') rampClip(camAudio[next.source], next); }
+    return;
+  }
   if (cur.el) cur.el.pause();
   if (next.type === 'gap' || !pool[next.source]) { for (const a of Object.values(camAudio)) a.pause(); activate(null); cur = { el: null, item: next }; return; }
   if (pre.id === next.id) startClip(pre.el, next, null);
@@ -253,7 +314,7 @@ function tick(now) {
     S.playhead += S.rate * dt * FPS;
     if (S.playhead <= 0) { S.playhead = 0; setRate(0); } else show(S.playhead);
   }
-  updatePlayhead(); syncLayers(); followPlayhead();
+  updatePlayhead(); syncLayers(); followPlayhead(); drawMeter();
   if (S.rate !== 0) requestAnimationFrame(tick); else ticking = false;
 }
 
@@ -262,7 +323,7 @@ function setRate(r) {
   $('rate').textContent = r === 0 || r === 1 ? '' : `${r > 0 ? '▶' : '◀'} ${Math.abs(r)}×`;
   $('t-play').querySelector('use').setAttribute('href', r === 0 ? '#i-play' : '#i-pause');
   if (r === 0) {
-    pauseAll(); S.playhead = Math.min(S.total, Math.round(S.playhead));
+    pauseAll(); requestAnimationFrame(meterDecay); S.playhead = Math.min(S.total, Math.round(S.playhead));
     show(S.playhead); updatePlayhead(); syncLayers(); saveUi(); return;
   }
   if (r > 0) startForward(); else pauseAll();
@@ -367,7 +428,7 @@ function renderTimeline() {
     if (it.id === S.sel || S.multi.has(it.id)) n.classList.add('sel');
     if (S.diff && S.only.has(it.id)) n.classList.add(S.only.get(it.id));
     if (it.type === 'block') {
-      n.title = `${it.section || ''}\n${it.text || ''}\n${it.source} ${it.in}–${it.out} · ${tc(it.dur)} · audio: ${it.audio || 'lav'}`;
+      n.title = `${it.section || ''}\n${it.text || ''}\n${it.source} ${it.in}–${it.out} · ${tc(it.dur)} · audio: ${it.audio || 'lav'}${it.gain ? ` · gain ${fmtDb(it.gain)}` : ''}`;
       const w = x(it.dur), ready = S.media[it.source] && S.media[it.source].ready;
       if (w > 40 && ready) {
         const th = el('div', 'thumb'); th.style.backgroundImage = `url(/thumb/${project}/${it.source}/${it.in}.jpg)`; n.appendChild(th);
@@ -457,7 +518,7 @@ function updatePlayhead() {
     if (line) { line.classList.add('cur'); if ($('transcript').classList.contains('on')) line.scrollIntoView({ block: 'nearest' }); }
   }
   $('clipinfo').textContent = it && it.type === 'block'
-    ? `f${f} / ${S.total} · ${it.source} @ ${it.in + (f - it.start)} · clip ${it.index + 1}/${S.items.length}` : `f${f} / ${S.total}`;
+    ? `f${f} / ${S.total} · ${it.source} @ ${it.in + (f - it.start)} · clip ${it.index + 1}/${S.items.length}${it.gain ? ` · ${fmtDb(it.gain)}` : ''}` : `f${f} / ${S.total}`;
 }
 
 function followPlayhead() {
@@ -516,14 +577,17 @@ function drawWaves() {
       const heard = (it.audio || 'lav') === (track === 'a2' ? 'lav' : 'cam');
       const x0 = Math.max(0, x(it.start) - left), x1 = Math.min(w, x(it.start + it.dur) - left - 1);
       g.fillStyle = heard ? '#18221d' : '#16181b'; g.fillRect(x0, 1, Math.max(1, x1 - x0), H - 2);
+      if (it.gain && heard && x1 - x0 > 34) { g.fillStyle = '#ffd60a'; g.font = '600 9px -apple-system, sans-serif'; g.fillText(fmtDb(it.gain), x0 + 4, 10); }
       if (!pk) continue;
-      g.fillStyle = heard ? '#4ccb86' : '#4c5a55';
+      const k = dbLin(it.gain), col = heard ? '#4ccb86' : '#4c5a55';
+      g.fillStyle = col;
       for (let px = Math.floor(x0); px < x1; px++) {
         const fa = (px + left) / S.ppf - it.start + it.in, fb = fa + 1 / S.ppf;
         const a = Math.floor(fa / FPS * 100), b = Math.max(a + 1, Math.ceil(fb / FPS * 100));
         let m = 0; for (let i = a; i < b && i < pk.length; i++) if (pk[i] > m) m = pk[i];
-        const h = Math.max(1, Math.sqrt(m / 255) * (H - 4));
-        g.fillRect(px, (H - h) / 2, 1, h);
+        const amp = m * k / 255, h = Math.max(1, Math.sqrt(Math.min(1, amp)) * (H - 4));
+        if (amp > 1 && heard) { g.fillStyle = '#ff453a'; g.fillRect(px, (H - h) / 2, 1, h); g.fillStyle = col; }
+        else g.fillRect(px, (H - h) / 2, 1, h);
       }
     }
   }
@@ -1031,6 +1095,19 @@ async function splitAtPlayhead(frame = Math.round(S.playhead)) {
   S.sel = left ? left.id : null; clearMarks(); renderTimeline(); seek(frame);
 }
 
+// ⌥↑ / ⌥↓: clip gain ±1 dB on the selected clips, else the clip under the playhead. One undo.
+async function nudgeGain(db) {
+  let ids = selectedIds().filter((id) => (S.items.find((i) => i.id === id) || {}).type === 'block');
+  if (!ids.length) { const it = itemAt(S.playhead); if (it && it.type === 'block') ids = [it.id]; }
+  if (!ids.length) return;
+  const r = await op('clip_gain', { ids, delta: db });
+  if (!r) return;
+  const g = Object.values(r.gain);
+  toast(ids.length === 1 ? `Clip gain ${fmtDb(g[0])}` : `Gain ${db > 0 ? '+' : ''}${db} dB on ${ids.length} clips`);
+  const it = cur.item && S.items.find((i) => i.id === cur.item.id);   // apply to what is playing now
+  if (it && cur.el && S.rate > 0) { cur.item = it; rampClip(it.audio === 'cam' ? camAudio[it.source] : cur.el, it); }
+}
+
 async function rippleTrim(side) {
   const p = Math.round(S.playhead), wasPlaying = S.rate;
   setRate(0);
@@ -1059,6 +1136,8 @@ addEventListener('keydown', (e) => {
   else if (cmd && k === 'z') history(e.shiftKey ? 'redo' : 'undo');
   else if (cmd && e.shiftKey && k === 'm') stepComment(-1);
   else if (cmd && e.shiftKey && k === 'x') { S.marks = { in: null, out: null }; renderMarks(); saveUi(); }
+  else if (cmd && k === 'a') { S.multi = new Set(S.items.map((i) => i.id)); S.sel = S.items.length ? S.items[0].id : null; markSel(); }
+  else if (e.altKey && !cmd && (k === 'ArrowUp' || k === 'ArrowDown')) nudgeGain(k === 'ArrowUp' ? 1 : -1);
   else if (cmd || e.altKey && k !== 'Delete' && k !== 'Backspace') hit = false;
   else if (k === 'l' || k === 'j') {
     const dir = k === 'l' ? 1 : -1;
@@ -1089,7 +1168,6 @@ addEventListener('keydown', (e) => {
   else if (!cmd && k === 'v') setTool('select');
   else if (!cmd && k === 't') setTool(S.tool === 'trim' ? 'select' : 'trim');
   else if (!cmd && k === 'n') toggleSnap();
-  else if (cmd && k === 'a') { S.multi = new Set(S.items.map((i) => i.id)); S.sel = S.items.length ? S.items[0].id : null; markSel(); }
   else if (k === 'Escape') { setTool('select'); S.marks = { in: null, out: null }; S.sel = null; S.multi.clear(); renderMarks(); renderTimeline(); saveUi(); }
   else if (k === '?') $('keys').hidden = false;
   else hit = false;
@@ -1119,7 +1197,11 @@ $('b-layers').onclick = () => {
   $('b-layers').title = S.layerMode === 'live' ? 'Layers: live from source. Click for rendered alpha files.' : 'Layers: preview from rendered alpha files. Click for live from source.';
   syncLayers();
 };
-$('vol').oninput = () => { const v = +$('vol').value; if (cur.el) cur.el.volume = v; for (const a of Object.values(camAudio)) a.volume = v; };
+$('vol').oninput = () => {
+  const v = +$('vol').value;
+  if (master) master.gain.setTargetAtTime(v, actx.currentTime, 0.02);
+  else { if (cur.el) cur.el.volume = v; for (const a of Object.values(camAudio)) a.volume = v; }
+};
 for (const b of document.querySelectorAll('header button, #transport button')) b.addEventListener('mouseup', () => b.blur());
 
 // Transport under the viewer.

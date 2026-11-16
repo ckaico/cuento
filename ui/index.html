@@ -74,6 +74,7 @@
       <button id="t-next" class="ib" title="Next edit (↓)"><svg class="i" aria-hidden="true"><use href="#i-next"/></svg></button>
       <div id="tc" title="timeline timecode">00:00:00</div>
       <div id="rate"></div>
+      <div id="meter" title="Audio level"><div id="meter-fill"></div><div id="meter-hold" hidden></div></div>
     </div>
   </section>
   <aside id="rail">
@@ -133,6 +134,7 @@
       <tr><td>Delete · ⇧Delete / ⌥Delete</td><td>ripple delete (closes the gap) · lift (leaves a gap); selected clips, else marked range</td></tr>
       <tr><td>M · ⇧M · ⇧⌘M</td><td>comment at playhead · next comment · previous comment</td></tr>
       <tr><td>⌘Z · ⇧⌘Z</td><td>undo · redo</td></tr>
+      <tr><td>⌥↑ · ⌥↓</td><td>clip gain +1 dB · −1 dB (selected clips, else the clip at the playhead)</td></tr>
       <tr><td>Tab · D</td><td>switch version at the same moment · show what only this version has</td></tr>
       <tr><td>= · - · \</td><td>zoom in · out · fit</td></tr>
       <tr><td>Drag a clip edge</td><td>trim by hand (both audio tracks follow)</td></tr>

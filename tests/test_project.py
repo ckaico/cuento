@@ -77,6 +77,18 @@ class Ops(unittest.TestCase):
         run(d, "clip_roll", id="b0", delta=-20)
         self.assertEqual(d["comments"][0]["start"], 160)
 
+    def test_clip_gain(self):
+        d = doc()
+        run(d, "clip_gain", ids=["b0", "b1"], delta=3)
+        run(d, "clip_gain", ids=["b1"], delta=-1.5)
+        self.assertEqual((d["seq"][0]["gain"], d["seq"][1]["gain"]), (3.0, 1.5))
+        run(d, "clip_gain", ids=["b0"], gain=100)
+        self.assertEqual(d["seq"][0]["gain"], 24.0)
+        run(d, "clip_gain", ids=["b0"], gain=0)
+        self.assertNotIn("gain", d["seq"][0])
+        run(d, "clip_split", frame=120)            # a split keeps the gain on both halves
+        self.assertEqual([it.get("gain") for it in d["seq"][1:3]], [1.5, 1.5])
+
     def test_comment_rides_its_clip(self):
         d = doc()
         run(d, "comment_add", start=160, dur=20, text="here")

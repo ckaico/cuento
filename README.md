@@ -39,7 +39,7 @@ scrub, undo: render none.
 ## What works today
 
 - **Timeline editing** on 540p proxies: J/K/L shuttle to 8×, frame stepping, add edit, razor, ripple, roll, slip and slide trims, snapping, multi-select, lift and ripple delete, in/out marks, drag-to-trim and drag-to-move, thumbnails and waveform.
-- **Linked dual audio**: camera mic (A1) and external recorder (A2) follow every trim, split and move. The preview plays one or the other per clip, never a sum.
+- **Linked dual audio**: camera mic (A1) and external recorder (A2) follow every trim, split and move. The preview plays one or the other per clip, never a sum. Clip gain, a short fade at every cut so cuts don't click, and a peak meter in the transport.
 - **Comments as tasks** on exact ranges, for picture or either audio track. Editing a resolved comment reopens it.
 - **Alpha layers**: HTML/CSS/canvas elements rendered frame by frame through headless Chrome to VP9-alpha WebM (preview) or ProRes 4444 (master), composited live in the browser.
 - **One history**: hand edits and Claude's edits go through the same operations into the same project file, with undo and a snapshot per revision.
@@ -109,6 +109,7 @@ references and house rules; Claude reads it when the project opens.
 | Q / W | ripple-trim previous / next edit to the playhead |
 | I / O / X | mark in, out, clip (Esc clears) |
 | Delete · ⇧Delete or ⌥Delete | ripple delete (closes the gap) · lift (leaves a gap) |
+| ⌥↑ / ⌥↓ | clip gain +1 / −1 dB |
 | M, ⇧M, ⇧⌘M | comment at playhead, next, previous |
 | ⌘Z / ⇧⌘Z | undo / redo |
 | Tab, D | switch version at the same moment, show what only this version has |

@@ -84,6 +84,11 @@ body.noinsp #rail { visibility: hidden; }
 #tc { font: 500 15px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: .5px; padding: 0 10px 0 12px; border-left: 1px solid var(--line); margin-left: 6px; }
 #rate { font: 600 12px var(--mono); color: var(--accent); min-width: 0; padding-right: 6px; }
 #rate:empty { display: none; }
+#meter { position: relative; width: 70px; height: 6px; margin: 0 8px 0 4px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+#meter-fill { position: absolute; inset: 0; background: linear-gradient(90deg, #30d158 0 80%, #ffd60a 80% 95%, #ff453a 95%); clip-path: inset(0 100% 0 0); }
+#meter-hold { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -2px; background: #fff; opacity: .8; }
+#meter-hold[hidden] { display: none; }
+#meter.over #meter-hold { background: #ff453a; opacity: 1; }
 
 #cbox { position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 10px; border-radius: var(--r);
   background: var(--glass-strong); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); border: 1px solid rgba(255, 179, 64, .55); box-shadow: var(--hi), var(--shadow); }

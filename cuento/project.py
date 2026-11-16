@@ -313,6 +313,23 @@ def op_clip_set(doc, id, **fields):
     return {"id": id}
 
 
+def op_clip_gain(doc, ids, gain=None, delta=None):
+    """Clip gain in dB (-60 to +24) for one or more clips, set or nudged. Applies to whichever track is heard."""
+    out = {}
+    for item_id in ids:
+        _, it = find(doc, item_id)
+        if it["type"] != "block":
+            continue
+        g = float(gain) if gain is not None else it.get("gain", 0.0) + float(delta or 0)
+        g = round(max(-60.0, min(24.0, g)), 1)
+        if g:
+            it["gain"] = g
+        else:
+            it.pop("gain", None)
+        out[item_id] = g
+    return {"gain": out}
+
+
 def op_comment_add(doc, start, text, dur=1, target="v1", by="user"):
     c = {"id": new_id("c"), "start": int(start), "dur": int(dur), "target": target,
          "text": text, "status": "open", "thread": [], "layer_id": None,
