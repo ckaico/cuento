@@ -48,7 +48,8 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "codeRepository": "https://github.com/ckaico/cuento",
         "image": "https://cuento.ai/assets/og.jpg",
-        "author": { "@type": "Person", "name": "Christian Kai", "url": "https://ship.ckai.co" }
+        "author": {"@type": "Person", "@id": "https://ckai.co/#person", "name": "Christian Kai", "alternateName": ["CKAI", "Adam Juegos"], "url": "https://ckai.co/", "image": "https://ship.ckai.co/christian-kai-800.jpg", "sameAs": ["https://www.imdb.com/name/nm1563447/", "https://www.linkedin.com/in/ckaico/", "https://www.youtube.com/@ckaico", "https://www.instagram.com/ckai.co/", "https://github.com/ckaico", "https://ship.ckai.co/"]},
+        "publisher": {"@type": "Organization", "name": "CKAI", "url": "https://ckai.co/", "founder": {"@id": "https://ckai.co/#person"}}
       },
       {
         "@type": "FAQPage",
@@ -237,7 +238,7 @@ ln -s "$PWD/skill" ~/.claude/skills/cuento</code></pre>
 </main>
 
 <footer class="wrap foot">
-  <span>© 2026 Christian Kai (CKAI) · Apache-2.0</span>
+  <span>© 2026 <a href="https://ckai.co/" rel="author">Christian Kai</a> (CKAI) · Apache-2.0</span>
   <span><a href="https://github.com/ckaico/cuento" rel="noopener">GitHub</a> · <a href="https://github.com/ckaico/cuento/blob/main/SECURITY.md" rel="noopener">Security</a> · <a href="https://ship.ckai.co" rel="noopener">One of the builds at ship.ckai.co</a></span>
 </footer>
 
